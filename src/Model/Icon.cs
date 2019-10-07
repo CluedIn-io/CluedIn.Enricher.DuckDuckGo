@@ -9,7 +9,7 @@
 
 using Newtonsoft.Json;
 
-namespace CluedIn.ExternalSearch.Providers.DuckDuckgo.Model
+namespace CluedIn.ExternalSearch.Providers.DuckDuckGo.Model
 {
     public class Icon
     {

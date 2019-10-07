@@ -10,7 +10,7 @@
 using CluedIn.Core.Data;
 using CluedIn.Core.Data.Vocabularies;
 
-namespace CluedIn.ExternalSearch.Providers.DuckDuckgo.Vocabularies
+namespace CluedIn.ExternalSearch.Providers.DuckDuckGo.Vocabularies
 {
     public class DuckDuckGoInfoboxVocabulary : DynamicVocabulary
     {

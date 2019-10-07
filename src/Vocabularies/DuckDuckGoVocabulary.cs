@@ -7,7 +7,7 @@
 // </summary>
 // --------------------------------------------------------------------------------------------------------------------
 
-namespace CluedIn.ExternalSearch.Providers.DuckDuckgo.Vocabularies
+namespace CluedIn.ExternalSearch.Providers.DuckDuckGo.Vocabularies
 {
     /// <summary>A duck go vocabulary.</summary>
     public static class DuckDuckGoVocabulary

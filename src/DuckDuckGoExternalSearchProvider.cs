@@ -16,13 +16,13 @@ using CluedIn.Core.Data;
 using CluedIn.Core.Data.Parts;
 using CluedIn.Crawling.Helpers;
 using CluedIn.ExternalSearch.Filters;
-using CluedIn.ExternalSearch.Providers.DuckDuckgo.Model;
-using CluedIn.ExternalSearch.Providers.DuckDuckgo.Vocabularies;
+using CluedIn.ExternalSearch.Providers.DuckDuckGo.Model;
+using CluedIn.ExternalSearch.Providers.DuckDuckGo.Vocabularies;
 using DomainNameParser;
 using Newtonsoft.Json;
 using RestSharp;
 
-namespace CluedIn.ExternalSearch.Providers.DuckDuckgo
+namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
 {
     /// <summary>A duck go external search provider.</summary>
     /// <seealso cref="T:CluedIn.ExternalSearch.ExternalSearchProviderBase"/>
