@@ -14,6 +14,9 @@ using System.Net;
 using CluedIn.Core;
 using CluedIn.Core.Data;
 using CluedIn.Core.Data.Parts;
+using CluedIn.Core.Data.Relational;
+using CluedIn.Core.ExternalSearch;
+using CluedIn.Core.Providers;
 using CluedIn.Crawling.Helpers;
 using CluedIn.ExternalSearch.Filters;
 using CluedIn.ExternalSearch.Providers.DuckDuckGo.Model;
@@ -26,7 +29,7 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
 {
     /// <summary>A duck go external search provider.</summary>
     /// <seealso cref="T:CluedIn.ExternalSearch.ExternalSearchProviderBase"/>
-    public class DuckDuckGoExternalSearchProvider : ExternalSearchProviderBase
+    public class DuckDuckGoExternalSearchProvider : ExternalSearchProviderBase, IExtendedEnricherMetadata
     {
         /**********************************************************************************************************
          * CONSTRUCTORS
@@ -38,7 +41,7 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
         /// Initializes a new instance of the <see cref="DuckDuckGoExternalSearchProvider" /> class.
         /// </summary>
         public DuckDuckGoExternalSearchProvider()
-            : base(new Guid("{C7DDBEA4-D5A2-4F25-B2A0-EBFD36D2E8D6}"), EntityType.Organization)
+            : base(new Guid("{C7DDBEA4-D5A2-4F25-B2A0-EBFD36D2E8D6}"), Core.Data.EntityType.Organization)
         {
         }
 
@@ -136,7 +139,7 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
             if (string.IsNullOrEmpty(resultItem.Data.Heading))
                 yield break;
 
-            var code = new EntityCode(EntityType.Organization, CodeOrigin.CluedIn.CreateSpecific("duckDuckGo"), resultItem.Data.Heading);
+            var code = new EntityCode(Core.Data.EntityType.Organization, CodeOrigin.CluedIn.CreateSpecific("duckDuckGo"), resultItem.Data.Heading);
 
             var clue = new Clue(code, context.Organization);
 
@@ -200,9 +203,9 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
         /// <param name="resultItem">The result item.</param>
         private void PopulateMetadata(IEntityMetadata metadata, IExternalSearchQueryResult<SearchResult> resultItem)
         {
-            var code = new EntityCode(EntityType.Organization, CodeOrigin.CluedIn.CreateSpecific("duckDuckGo"), resultItem.Data.Heading);
+            var code = new EntityCode(Core.Data.EntityType.Organization, CodeOrigin.CluedIn.CreateSpecific("duckDuckGo"), resultItem.Data.Heading);
 
-            metadata.EntityType       = EntityType.Organization;
+            metadata.EntityType       = Core.Data.EntityType.Organization;
             metadata.Name             = resultItem.Data.Heading;
             metadata.Description      = resultItem.Data.Abstract;
             metadata.OriginEntityCode = code;
@@ -350,5 +353,15 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
 
             return null;
         }
+
+        public string Icon { get; } = "Resources.duckduckgo.png";
+        public string Domain { get; } = "N/A";
+        public string About { get; } = "Duck Duck Go is a search engine";
+        public AuthMethods AuthMethods { get; } = null;
+        public IEnumerable<Control> Properties { get; } = null;
+        public Guide Guide { get; } = null;
+        public IntegrationType Type { get; } = IntegrationType.Cloud;
     }
+
+
 }
