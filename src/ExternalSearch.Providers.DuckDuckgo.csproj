@@ -1,9 +1,9 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
-    <None Remove="Resources\duckduckgo.png" />
+    <None Remove="Resources\duckduckgo.svg" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Resources\duckduckgo.png" />
+    <EmbeddedResource Include="Resources\duckduckgo.svg" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="CluedIn.Core" />

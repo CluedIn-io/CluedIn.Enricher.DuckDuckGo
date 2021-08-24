@@ -354,7 +354,7 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
             return null;
         }
 
-        public string Icon { get; } = "Resources.duckduckgo.png";
+        public string Icon { get; } = "Resources.duckduckgo.svg";
         public string Domain { get; } = "N/A";
         public string About { get; } = "Duck Duck Go is a search engine";
         public AuthMethods AuthMethods { get; } = null;
