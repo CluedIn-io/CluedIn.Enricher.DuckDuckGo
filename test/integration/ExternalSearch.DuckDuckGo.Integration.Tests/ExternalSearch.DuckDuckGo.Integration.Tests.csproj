@@ -1,5 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
     <ProjectReference Include="..\..\..\src\ExternalSearch.Providers.DuckDuckgo.csproj" />
+    <ProjectReference Include="..\..\..\src\ExternalSearch.Providers.DuckDuckgo\ExternalSearch.Providers.DuckDuckgo.csproj" />
   </ItemGroup>
 </Project>
