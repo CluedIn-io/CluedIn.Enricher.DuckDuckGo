@@ -19,29 +19,34 @@ using CluedIn.Core.ExternalSearch;
 using CluedIn.Core.Providers;
 using CluedIn.Crawling.Helpers;
 using CluedIn.ExternalSearch.Filters;
+using CluedIn.ExternalSearch.Providers.DuckDuckgo;
 using CluedIn.ExternalSearch.Providers.DuckDuckGo.Model;
 using CluedIn.ExternalSearch.Providers.DuckDuckGo.Vocabularies;
 using DomainNameParser;
 using Newtonsoft.Json;
 using RestSharp;
+using EntityType = CluedIn.Core.Data.EntityType;
 
 namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
 {
     /// <summary>A duck go external search provider.</summary>
     /// <seealso cref="T:CluedIn.ExternalSearch.ExternalSearchProviderBase"/>
-    public class DuckDuckGoExternalSearchProvider : ExternalSearchProviderBase, IExtendedEnricherMetadata
+    public class DuckDuckGoExternalSearchProvider : ExternalSearchProviderBase, IExtendedEnricherMetadata, IConfigurableExternalSearchProvider
     {
+
+        private static readonly EntityType[] AcceptedEntityTypes = { EntityType.Organization };
+
+
         /**********************************************************************************************************
          * CONSTRUCTORS
          **********************************************************************************************************/
 
-        // TODO: Move Magic GUID to constants
-        
+
         /// <summary>
         /// Initializes a new instance of the <see cref="DuckDuckGoExternalSearchProvider" /> class.
         /// </summary>
         public DuckDuckGoExternalSearchProvider()
-            : base(new Guid("{C7DDBEA4-D5A2-4F25-B2A0-EBFD36D2E8D6}"), Core.Data.EntityType.Organization)
+            : base(DuckDuckGoConstants.ProviderId, AcceptedEntityTypes)
         {
         }
 
@@ -354,13 +359,47 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
             return null;
         }
 
-        public string Icon { get; } = "Resources.duckduckgo.svg";
-        public string Domain { get; } = "N/A";
-        public string About { get; } = "Duck Duck Go is a search engine";
+        public string Icon { get; } = DuckDuckGoConstants.Icon;
+        public string Domain { get; } = DuckDuckGoConstants.Domain;
+        public string About { get; } = DuckDuckGoConstants.About;
         public AuthMethods AuthMethods { get; } = null;
         public IEnumerable<Control> Properties { get; } = null;
         public Guide Guide { get; } = null;
         public IntegrationType Type { get; } = IntegrationType.Cloud;
+
+        public IEnumerable<EntityType> Accepts(IDictionary<string, object> config, IProvider provider)
+        {
+            return AcceptedEntityTypes;
+        }
+
+        public IEnumerable<IExternalSearchQuery> BuildQueries(ExecutionContext context, IExternalSearchRequest request, IDictionary<string, object> config,
+            IProvider provider)
+        {
+            return BuildQueries(context, request);
+        }
+
+        public IEnumerable<IExternalSearchQueryResult> ExecuteSearch(ExecutionContext context, IExternalSearchQuery query, IDictionary<string, object> config, IProvider provider)
+        {
+            foreach (var externalSearchQueryResult in ExecuteSearch(context, query)) yield return externalSearchQueryResult;
+        }
+
+        public IEnumerable<Clue> BuildClues(ExecutionContext context, IExternalSearchQuery query, IExternalSearchQueryResult result,
+            IExternalSearchRequest request, IDictionary<string, object> config, IProvider provider)
+        {
+            return BuildClues(context, query, result, request);
+        }
+
+        public IEntityMetadata GetPrimaryEntityMetadata(ExecutionContext context, IExternalSearchQueryResult result,
+            IExternalSearchRequest request, IDictionary<string, object> config, IProvider provider)
+        {
+            return GetPrimaryEntityMetadata(context, result, request);
+        }
+
+        public IPreviewImage GetPrimaryEntityPreviewImage(ExecutionContext context, IExternalSearchQueryResult result,
+            IExternalSearchRequest request, IDictionary<string, object> config, IProvider provider)
+        {
+            return GetPrimaryEntityPreviewImage(context, result, request);
+        }
     }
 
 

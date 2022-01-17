@@ -1,0 +1,23 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+  </PropertyGroup>
+
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+		<LangVersion>latest</LangVersion>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+		<LangVersion>latest</LangVersion>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="CluedIn.Core" />
+		<PackageReference Include="ComponentHost" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <ProjectReference Include="..\ExternalSearch.Providers.DuckDuckgo\ExternalSearch.Providers.DuckDuckgo.csproj" />
+	</ItemGroup>
+</Project>
