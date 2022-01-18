@@ -1,7 +1,5 @@
-ignore:
-  sha: []
 mode: ContinuousDeployment
-next-version: "3.3"
+next-version: 3.3
 branches:
   hotfix:
     tag: useBranchName
