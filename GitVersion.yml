@@ -1,5 +1,16 @@
 # GitVersion.yml
-mode: ContinuousDelivery
-branches: {}
+mode: ContinuousDeployment
+next-version: 3.3
+branches:
+  master:
+    mode: ContinuousDelivery
+  pull-request:
+    tag: pr
+    increment: None
+  develop:
+    tag: alpha
+  hotfix:
+    tag: useBranchName
 ignore:
-  sha: []
+  sha: [
+  ]

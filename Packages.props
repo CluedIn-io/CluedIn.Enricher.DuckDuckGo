@@ -1,9 +1,9 @@
 <Project>
   <PropertyGroup Label="Dependency Versions">
     <_AutoFixture>4.11.0</_AutoFixture>
-    <_CluedIn>3.2.0-*</_CluedIn>
+    <_CluedIn>3.3.0-*</_CluedIn>
+    <_ComponentHost>2.0.0</_ComponentHost>
   </PropertyGroup>
-
   <ItemGroup>
     <!--
         Specified versions for dependencies in test projects
@@ -23,21 +23,19 @@
     <PackageReference Update="Shouldly" Version="3.0.2" />
     <PackageReference Update="CluedIn.Testing.Base" Version="$(_CluedIn)" />
   </ItemGroup>
-
   <ItemGroup>
     <!--
         Specified versions for dependencies across the solution
 
         MUST SPECIFY IN CSPROJ AS <PackageReference Name="<depName>" />
     -->
+    <PackageReference Update="ComponentHost" Version="$(_ComponentHost)" />
     <PackageReference Update="CluedIn.Core" Version="$(_CluedIn)" />
     <PackageReference Update="CluedIn.ExternalSearch" Version="$(_CluedIn)" />
     <PackageReference Update="CluedIn.Processing" Version="$(_CluedIn)" />
     <PackageReference Update="CluedIn.Processing.Web" Version="$(_CluedIn)" />
     <PackageReference Update="CluedIn.Processing.Web.TechnologyDetection" Version="$(_CluedIn)" />
-
   </ItemGroup>
-
   <ItemGroup Label="Global tools">
     <!--
             Automatically added to each project with :
