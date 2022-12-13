@@ -60,7 +60,21 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
         /// <returns>The search queries.</returns>
         public override IEnumerable<IExternalSearchQuery> BuildQueries(ExecutionContext context, IExternalSearchRequest request)
         {
-            if (!this.Accepts(request.EntityMetaData.EntityType))
+            foreach (var externalSearchQuery in InternalBuildQueries(context, request))
+            {
+                yield return externalSearchQuery;
+            }
+        }
+        private IEnumerable<IExternalSearchQuery> InternalBuildQueries(ExecutionContext context, IExternalSearchRequest request, IDictionary<string, object> config = null)
+        {
+            if (config.TryGetValue(DuckDuckGoConstants.KeyName.AcceptedEntityType, out var customType) && !string.IsNullOrWhiteSpace(customType.ToString()))
+            {
+                if (!request.EntityMetaData.EntityType.Is(customType.ToString()))
+                {
+                    yield break;
+                }
+            }
+            else if (!this.Accepts(request.EntityMetaData.EntityType))
                 yield break;
 
             var existingResults = request.GetQueryResults<SearchResult>(this).Where(r => r.Data.Infobox != null).ToList();
@@ -71,8 +85,27 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
 
             // Query Input
             var entityType     = request.EntityMetaData.EntityType;
-            var companyName    = request.QueryParameters.GetValue(CluedIn.Core.Data.Vocabularies.Vocabularies.CluedInOrganization.OrganizationName, new HashSet<string>());
-            var companyWebsite = request.QueryParameters.GetValue(CluedIn.Core.Data.Vocabularies.Vocabularies.CluedInOrganization.Website, new HashSet<string>());
+
+            var companyName = new HashSet<string>();
+            var companyWebsite = new HashSet<string>();
+
+            if (config.TryGetValue(DuckDuckGoConstants.KeyName.OrgNameKey, out var customVocabKeyOrgName) && !string.IsNullOrWhiteSpace(customVocabKeyOrgName?.ToString()))
+            {
+                companyName = request.QueryParameters.GetValue<string, HashSet<string>>(customVocabKeyOrgName.ToString(), new HashSet<string>());
+            }
+            else
+            {
+                companyName = request.QueryParameters.GetValue(CluedIn.Core.Data.Vocabularies.Vocabularies.CluedInOrganization.OrganizationName, new HashSet<string>()).ToHashSetEx();
+            }
+            if (config.TryGetValue(DuckDuckGoConstants.KeyName.WebsiteKey, out var customVocabKeyWebsite) && !string.IsNullOrWhiteSpace(customVocabKeyWebsite?.ToString()))
+            {
+                companyWebsite = request.QueryParameters.GetValue<string, HashSet<string>>(customVocabKeyWebsite.ToString(), new HashSet<string>());
+            }
+            else
+            {
+                companyWebsite = request.QueryParameters.GetValue(CluedIn.Core.Data.Vocabularies.Vocabularies.CluedInOrganization.Website, new HashSet<string>()).ToHashSetEx();
+            }
+
 
             if (companyName != null)
             {
@@ -375,7 +408,7 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
         public IEnumerable<IExternalSearchQuery> BuildQueries(ExecutionContext context, IExternalSearchRequest request, IDictionary<string, object> config,
             IProvider provider)
         {
-            return BuildQueries(context, request);
+            return InternalBuildQueries(context, request, config);
         }
 
         public IEnumerable<IExternalSearchQueryResult> ExecuteSearch(ExecutionContext context, IExternalSearchQuery query, IDictionary<string, object> config, IProvider provider)
