@@ -177,13 +177,13 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
             if (string.IsNullOrEmpty(resultItem.Data.Heading))
                 yield break;
 
-            var code = new EntityCode(Core.Data.EntityType.Organization, CodeOrigin.CluedIn.CreateSpecific("duckDuckGo"), resultItem.Data.Heading);
+            var code = new EntityCode(Core.Data.EntityType.Organization, CodeOrigin.CluedIn.CreateSpecific("duckDuckGo"), request.EntityMetaData.OriginEntityCode.Value);
 
             var clue = new Clue(code, context.Organization);
 
             clue.Data.OriginProviderDefinitionId = this.Id;
 
-            this.PopulateMetadata(clue.Data.EntityData, resultItem);
+            this.PopulateMetadata(clue.Data.EntityData, resultItem, request);
 
             if (resultItem.Data.ImageIsLogo == 1 && resultItem.Data.Image != null)
                 this.DownloadPreviewImage(context, resultItem.Data.Image, clue);
@@ -203,7 +203,7 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
             if (resultItem.Data.Entity != "company")
                 return null;
 
-            return this.CreateMetadata(resultItem);
+            return this.CreateMetadata(resultItem, request);
         }
 
         /// <summary>Gets the preview image.</summary>
@@ -227,11 +227,11 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
         /// <summary>Creates the metadata.</summary>
         /// <param name="resultItem">The result item.</param>
         /// <returns>The metadata.</returns>
-        private IEntityMetadata CreateMetadata(IExternalSearchQueryResult<SearchResult> resultItem)
+        private IEntityMetadata CreateMetadata(IExternalSearchQueryResult<SearchResult> resultItem, IExternalSearchRequest request)
         {
             var metadata = new EntityMetadataPart();
 
-            this.PopulateMetadata(metadata, resultItem);
+            this.PopulateMetadata(metadata, resultItem, request);
 
             return metadata;
         }
@@ -239,14 +239,15 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
         /// <summary>Populates the metadata.</summary>
         /// <param name="metadata">The metadata.</param>
         /// <param name="resultItem">The result item.</param>
-        private void PopulateMetadata(IEntityMetadata metadata, IExternalSearchQueryResult<SearchResult> resultItem)
+        private void PopulateMetadata(IEntityMetadata metadata, IExternalSearchQueryResult<SearchResult> resultItem, IExternalSearchRequest request)
         {
-            var code = new EntityCode(Core.Data.EntityType.Organization, CodeOrigin.CluedIn.CreateSpecific("duckDuckGo"), resultItem.Data.Heading);
+            var code = new EntityCode(request.EntityMetaData.EntityType, CodeOrigin.CluedIn.CreateSpecific("duckDuckGo"), request.EntityMetaData.OriginEntityCode.Value);
 
-            metadata.EntityType       = Core.Data.EntityType.Organization;
-            metadata.Name             = resultItem.Data.Heading;
+            metadata.EntityType       = request.EntityMetaData.EntityType;
+            metadata.Name             = request.EntityMetaData.Name;
             metadata.Description      = resultItem.Data.Abstract;
             metadata.OriginEntityCode = code;
+            metadata.Codes.Add(request.EntityMetaData.OriginEntityCode);
 
             var uri = resultItem.Data.Results.FirstOrDefault()?.FirstURL;
             if (uri != null && UriUtility.IsValid(uri))
