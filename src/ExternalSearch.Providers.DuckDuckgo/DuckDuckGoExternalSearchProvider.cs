@@ -1,4 +1,4 @@
-﻿// --------------------------------------------------------------------------------------------------------------------
+// --------------------------------------------------------------------------------------------------------------------
 // <copyright file="DuckDuckGoExternalSearchProvider.cs" company="Clued In">
 //   Copyright (c) 2018 Clued In. All rights reserved.
 // </copyright>
@@ -21,8 +21,8 @@ using CluedIn.Crawling.Helpers;
 using CluedIn.ExternalSearch.Filters;
 using CluedIn.ExternalSearch.Providers.DuckDuckgo;
 using CluedIn.ExternalSearch.Providers.DuckDuckGo.Model;
+using CluedIn.ExternalSearch.Providers.DuckDuckgo.Net;
 using CluedIn.ExternalSearch.Providers.DuckDuckGo.Vocabularies;
-using DomainNameParser;
 using Newtonsoft.Json;
 using RestSharp;
 using EntityType = CluedIn.Core.Data.EntityType;
@@ -76,7 +76,7 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
 
             if (companyName != null)
             {
-                var values = companyName.Select(NameNormalization.Normalize).ToHashSetEx();
+                var values = companyName.Select(NameNormalization.Normalize).ToHashSet();
 
                 foreach (var value in values.Where(v => !nameFilter(v) && !existingResultsFilter(v)))
                     yield return new ExternalSearchQuery(this, entityType, ExternalSearchQueryParameter.Name, value);
@@ -93,8 +93,7 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
                         if (UriUtility.IsValid(v))
                             return false;
 
-                        DomainName domain;
-                        if (!DomainName.TryParse(v, out domain))
+                        if (!DomainName.TryParse(v, out var domain))
                             return false;
 
                         return true;
