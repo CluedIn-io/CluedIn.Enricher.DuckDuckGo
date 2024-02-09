@@ -54,16 +54,6 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo.Vocabularies
             this.InstagramProfile = this.Add(new VocabularyKey("instagramProfile"));
             this.YouTubeChannel   = this.Add(new VocabularyKey("youtubeChannel"));
 
-            this.AddMapping(this.Websites,         CluedIn.Core.Data.Vocabularies.Vocabularies.CluedInOrganization.Website);
-            this.AddMapping(this.Founded,          CluedIn.Core.Data.Vocabularies.Vocabularies.CluedInOrganization.FoundingDate);
-            this.AddMapping(this.Revenue,          CluedIn.Core.Data.Vocabularies.Vocabularies.CluedInOrganization.AnnualRevenue);
-            this.AddMapping(this.Employees,        CluedIn.Core.Data.Vocabularies.Vocabularies.CluedInOrganization.EmployeeCount);
-            this.AddMapping(this.Industry,         CluedIn.Core.Data.Vocabularies.Vocabularies.CluedInOrganization.Industry);
-            this.AddMapping(this.GitHubProfile,    CluedIn.Core.Data.Vocabularies.Vocabularies.CluedInOrganization.Social.GitHub);
-            this.AddMapping(this.TwitterProfile,   CluedIn.Core.Data.Vocabularies.Vocabularies.CluedInOrganization.Social.Twitter);
-            this.AddMapping(this.FacebookProfile,  CluedIn.Core.Data.Vocabularies.Vocabularies.CluedInOrganization.Social.Facebook);
-            this.AddMapping(this.InstagramProfile, CluedIn.Core.Data.Vocabularies.Vocabularies.CluedInOrganization.Social.Instagram);
-            this.AddMapping(this.YouTubeChannel,   CluedIn.Core.Data.Vocabularies.Vocabularies.CluedInOrganization.Social.YouTube);
         }
 
         public VocabularyKey Score { get; set; }
