@@ -26,6 +26,8 @@ using CluedIn.ExternalSearch.Providers.DuckDuckGo.Vocabularies;
 using Newtonsoft.Json;
 using RestSharp;
 using EntityType = CluedIn.Core.Data.EntityType;
+using Neo4j.Driver;
+using CluedIn.ExternalSearch.Provider;
 
 namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
 {
@@ -76,17 +78,9 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
             return configurableAcceptedEntityTypes.Any(entityTypeToEvaluate.Is);
         }
 
-        /// <summary>Builds the queries.</summary>
-        /// <param name="context">The context.</param>
-        /// <param name="request">The request.</param>
-        /// <returns>The search queries.</returns>
-        public override IEnumerable<IExternalSearchQuery> BuildQueries(ExecutionContext context, IExternalSearchRequest request)
-        {
-            foreach (var externalSearchQuery in InternalBuildQueries(context, request))
-            {
-                yield return externalSearchQuery;
-            }
-        }
+        public IEnumerable<IExternalSearchQuery> BuildQueries(ExecutionContext context, IExternalSearchRequest request, IDictionary<string, object> config, IProvider provider)
+            => InternalBuildQueries(context, request, new DuckDuckGoExternalSearchJobData(config));
+
         private IEnumerable<IExternalSearchQuery> InternalBuildQueries(ExecutionContext context, IExternalSearchRequest request, DuckDuckGoExternalSearchJobData config = null)
         {
             if (!this.Accepts(config, request.EntityMetaData.EntityType))
@@ -154,11 +148,7 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
             }
         }
 
-        /// <summary>Executes the search.</summary>
-        /// <param name="context">The context.</param>
-        /// <param name="query">The query.</param>
-        /// <returns>The results.</returns>
-        public override IEnumerable<IExternalSearchQueryResult> ExecuteSearch(ExecutionContext context, IExternalSearchQuery query)
+        public IEnumerable<IExternalSearchQueryResult> ExecuteSearch(ExecutionContext context, IExternalSearchQuery query, IDictionary<string, object> config, IProvider provider)
         {
             var id = query.QueryParameters[ExternalSearchQueryParameter.Name].FirstOrDefault();
 
@@ -175,13 +165,7 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
                 yield break;
         }
 
-        /// <summary>Builds the clues.</summary>
-        /// <param name="context">The context.</param>
-        /// <param name="query">The query.</param>
-        /// <param name="result">The result.</param>
-        /// <param name="request">The request.</param>
-        /// <returns>The clues.</returns>
-        public override IEnumerable<Clue> BuildClues(ExecutionContext context, IExternalSearchQuery query, IExternalSearchQueryResult result, IExternalSearchRequest request)
+        public IEnumerable<Clue> BuildClues(ExecutionContext context, IExternalSearchQuery query, IExternalSearchQueryResult result, IExternalSearchRequest request, IDictionary<string, object> config, IProvider provider)
         {
             var resultItem = result.As<SearchResult>();
 
@@ -205,12 +189,8 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
             yield return clue;
         }
 
-        /// <summary>Gets the primary entity metadata.</summary>
-        /// <param name="context">The context.</param>
-        /// <param name="result">The result.</param>
-        /// <param name="request">The request.</param>
-        /// <returns>The primary entity metadata.</returns>
-        public override IEntityMetadata GetPrimaryEntityMetadata(ExecutionContext context, IExternalSearchQueryResult result, IExternalSearchRequest request)
+
+        public IEntityMetadata GetPrimaryEntityMetadata(ExecutionContext context, IExternalSearchQueryResult result, IExternalSearchRequest request, IDictionary<string, object> config, IProvider provider)
         {
             var resultItem = result.As<SearchResult>();
 
@@ -220,12 +200,16 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
             return this.CreateMetadata(resultItem, request);
         }
 
-        /// <summary>Gets the preview image.</summary>
-        /// <param name="context">The context.</param>
-        /// <param name="result">The result.</param>
-        /// <param name="request">The request.</param>
-        /// <returns>The preview image.</returns>
         public override IPreviewImage GetPrimaryEntityPreviewImage(ExecutionContext context, IExternalSearchQueryResult result, IExternalSearchRequest request)
+        {
+            // Note: This needs to be cleaned up, but since config and provider is not used in GetPrimaryEntityPreviewImage this is fine.
+            var dummyConfig   = new Dictionary<string, object>();
+            var dummyProvider = new DefaultExternalSearchProviderProvider(context.ApplicationContext, this);
+
+            return GetPrimaryEntityPreviewImage(context, result, request, dummyConfig, dummyProvider);
+        }
+
+        public IPreviewImage GetPrimaryEntityPreviewImage(ExecutionContext context, IExternalSearchQueryResult result, IExternalSearchRequest request, IDictionary<string, object> config, IProvider provider)
         {
             var resultItem = result.As<SearchResult>();
 
@@ -238,9 +222,6 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
             return null;
         }
 
-        /// <summary>Creates the metadata.</summary>
-        /// <param name="resultItem">The result item.</param>
-        /// <returns>The metadata.</returns>
         private IEntityMetadata CreateMetadata(IExternalSearchQueryResult<SearchResult> resultItem, IExternalSearchRequest request)
         {
             var metadata = new EntityMetadataPart();
@@ -250,9 +231,6 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
             return metadata;
         }
 
-        /// <summary>Populates the metadata.</summary>
-        /// <param name="metadata">The metadata.</param>
-        /// <param name="resultItem">The result item.</param>
         private void PopulateMetadata(IEntityMetadata metadata, IExternalSearchQueryResult<SearchResult> resultItem, IExternalSearchRequest request)
         {
             var code = new EntityCode(request.EntityMetaData.EntityType, CodeOrigin.CluedIn.CreateSpecific("duckDuckGo"), request.EntityMetaData.OriginEntityCode.Value);
@@ -342,7 +320,7 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
         }
 
         /// <summary>
-        /// Wrapper around a request to ensure propper deserialization of the JSON.
+        /// Wrapper around a request to ensure proper deserialization of the JSON.
         /// </summary>
         /// <typeparam name="T">The model</typeparam>
         /// <param name="client">An IRestClient for the request</param>
@@ -371,7 +349,7 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
         }
 
         /// <summary>
-        /// Formarts the label so it fits the style of the properties (e.g. "Company type" -> "companyType")
+        /// Formats the label so it fits the style of the properties (e.g. "Company type" -> "companyType")
         /// </summary>
         /// <param name="label">The label to format</param>
         /// <returns>The formatted label</returns>
@@ -409,6 +387,14 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
 
         // Since this is a configurable external search provider, theses methods should never be called
         public override bool Accepts(EntityType entityType) => throw new NotSupportedException();
+        public override IEnumerable<IExternalSearchQuery> BuildQueries(ExecutionContext context, IExternalSearchRequest request) => throw new NotSupportedException();
+        public override IEnumerable<IExternalSearchQueryResult> ExecuteSearch(ExecutionContext context, IExternalSearchQuery query) => throw new NotSupportedException();
+        public override IEnumerable<Clue> BuildClues(ExecutionContext context, IExternalSearchQuery query, IExternalSearchQueryResult result, IExternalSearchRequest request) => throw new NotSupportedException();
+        public override IEntityMetadata GetPrimaryEntityMetadata(ExecutionContext context, IExternalSearchQueryResult result, IExternalSearchRequest request) => throw new NotSupportedException();
+
+        /**********************************************************************************************************
+         * PROPERTIES
+         **********************************************************************************************************/
 
         public string Icon { get; } = DuckDuckGoConstants.Icon;
         public string Domain { get; } = DuckDuckGoConstants.Domain;
@@ -417,36 +403,5 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
         public IEnumerable<Control> Properties { get; } = null;
         public Guide Guide { get; } = null;
         public IntegrationType Type { get; } = IntegrationType.Cloud;
-
-        public IEnumerable<IExternalSearchQuery> BuildQueries(ExecutionContext context, IExternalSearchRequest request, IDictionary<string, object> config,
-            IProvider provider)
-        {
-            return InternalBuildQueries(context, request, new DuckDuckGoExternalSearchJobData(config));
-        }
-
-        public IEnumerable<IExternalSearchQueryResult> ExecuteSearch(ExecutionContext context, IExternalSearchQuery query, IDictionary<string, object> config, IProvider provider)
-        {
-            foreach (var externalSearchQueryResult in ExecuteSearch(context, query)) yield return externalSearchQueryResult;
-        }
-
-        public IEnumerable<Clue> BuildClues(ExecutionContext context, IExternalSearchQuery query, IExternalSearchQueryResult result,
-            IExternalSearchRequest request, IDictionary<string, object> config, IProvider provider)
-        {
-            return BuildClues(context, query, result, request);
-        }
-
-        public IEntityMetadata GetPrimaryEntityMetadata(ExecutionContext context, IExternalSearchQueryResult result,
-            IExternalSearchRequest request, IDictionary<string, object> config, IProvider provider)
-        {
-            return GetPrimaryEntityMetadata(context, result, request);
-        }
-
-        public IPreviewImage GetPrimaryEntityPreviewImage(ExecutionContext context, IExternalSearchQueryResult result,
-            IExternalSearchRequest request, IDictionary<string, object> config, IProvider provider)
-        {
-            return GetPrimaryEntityPreviewImage(context, result, request);
-        }
     }
-
-
 }
