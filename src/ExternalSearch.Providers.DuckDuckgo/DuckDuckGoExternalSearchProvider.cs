@@ -33,26 +33,48 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
     /// <seealso cref="T:CluedIn.ExternalSearch.ExternalSearchProviderBase"/>
     public class DuckDuckGoExternalSearchProvider : ExternalSearchProviderBase, IExtendedEnricherMetadata, IConfigurableExternalSearchProvider
     {
+        /**********************************************************************************************************
+         * FIELDS
+         **********************************************************************************************************/
 
-        private static readonly EntityType[] AcceptedEntityTypes = { EntityType.Organization };
-
+        private static readonly EntityType[] DefaultAcceptedEntityTypes = { EntityType.Organization };
 
         /**********************************************************************************************************
          * CONSTRUCTORS
          **********************************************************************************************************/
 
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="DuckDuckGoExternalSearchProvider" /> class.
-        /// </summary>
         public DuckDuckGoExternalSearchProvider()
-            : base(DuckDuckGoConstants.ProviderId, AcceptedEntityTypes)
+            : base(DuckDuckGoConstants.ProviderId, DefaultAcceptedEntityTypes)
         {
         }
 
         /**********************************************************************************************************
          * METHODS
          **********************************************************************************************************/
+
+        public IEnumerable<EntityType> Accepts(IDictionary<string, object> config, IProvider provider) => this.Accepts(config);
+
+        private IEnumerable<EntityType> Accepts(IDictionary<string, object> config)
+            => Accepts(new DuckDuckGoExternalSearchJobData(config));
+
+        private IEnumerable<EntityType> Accepts(DuckDuckGoExternalSearchJobData config)
+        {
+            if (!string.IsNullOrWhiteSpace(config.AcceptedEntityType))
+            {
+                // If configured, only accept the configured entity types
+                return new EntityType[] { config.AcceptedEntityType };
+            }
+
+            // Fallback to default accepted entity types
+            return DefaultAcceptedEntityTypes;
+        }
+
+        private bool Accepts(DuckDuckGoExternalSearchJobData config, EntityType entityTypeToEvaluate)
+        {
+            var configurableAcceptedEntityTypes = this.Accepts(config).ToArray();
+
+            return configurableAcceptedEntityTypes.Any(entityTypeToEvaluate.Is);
+        }
 
         /// <summary>Builds the queries.</summary>
         /// <param name="context">The context.</param>
@@ -65,16 +87,9 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
                 yield return externalSearchQuery;
             }
         }
-        private IEnumerable<IExternalSearchQuery> InternalBuildQueries(ExecutionContext context, IExternalSearchRequest request, IDictionary<string, object> config = null)
+        private IEnumerable<IExternalSearchQuery> InternalBuildQueries(ExecutionContext context, IExternalSearchRequest request, DuckDuckGoExternalSearchJobData config = null)
         {
-            if (config.TryGetValue(DuckDuckGoConstants.KeyName.AcceptedEntityType, out var customType) && !string.IsNullOrWhiteSpace(customType.ToString()))
-            {
-                if (!request.EntityMetaData.EntityType.Is(customType.ToString()))
-                {
-                    yield break;
-                }
-            }
-            else if (!this.Accepts(request.EntityMetaData.EntityType))
+            if (!this.Accepts(config, request.EntityMetaData.EntityType))
                 yield break;
 
             var existingResults = request.GetQueryResults<SearchResult>(this).Where(r => r.Data.Infobox != null).ToList();
@@ -86,20 +101,20 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
             // Query Input
             var entityType     = request.EntityMetaData.EntityType;
 
-            var companyName = new HashSet<string>();
+            var companyName    = new HashSet<string>();
             var companyWebsite = new HashSet<string>();
 
-            if (config.TryGetValue(DuckDuckGoConstants.KeyName.OrgNameKey, out var customVocabKeyOrgName) && !string.IsNullOrWhiteSpace(customVocabKeyOrgName?.ToString()))
+            if (!string.IsNullOrWhiteSpace(config.OrgNameKey))
             {
-                companyName = request.QueryParameters.GetValue<string, HashSet<string>>(customVocabKeyOrgName.ToString(), new HashSet<string>());
+                companyName = request.QueryParameters.GetValue<string, HashSet<string>>(config.OrgNameKey, new HashSet<string>());
             }
             else
             {
                 companyName = request.QueryParameters.GetValue(CluedIn.Core.Data.Vocabularies.Vocabularies.CluedInOrganization.OrganizationName, new HashSet<string>()).ToHashSet();
             }
-            if (config.TryGetValue(DuckDuckGoConstants.KeyName.WebsiteKey, out var customVocabKeyWebsite) && !string.IsNullOrWhiteSpace(customVocabKeyWebsite?.ToString()))
+            if (!string.IsNullOrWhiteSpace(config.WebsiteKey))
             {
-                companyWebsite = request.QueryParameters.GetValue<string, HashSet<string>>(customVocabKeyWebsite.ToString(), new HashSet<string>());
+                companyWebsite = request.QueryParameters.GetValue<string, HashSet<string>>(config.WebsiteKey, new HashSet<string>());
             }
             else
             {
@@ -392,6 +407,9 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
             return null;
         }
 
+        // Since this is a configurable external search provider, theses methods should never be called
+        public override bool Accepts(EntityType entityType) => throw new NotSupportedException();
+
         public string Icon { get; } = DuckDuckGoConstants.Icon;
         public string Domain { get; } = DuckDuckGoConstants.Domain;
         public string About { get; } = DuckDuckGoConstants.About;
@@ -400,15 +418,10 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
         public Guide Guide { get; } = null;
         public IntegrationType Type { get; } = IntegrationType.Cloud;
 
-        public IEnumerable<EntityType> Accepts(IDictionary<string, object> config, IProvider provider)
-        {
-            return AcceptedEntityTypes;
-        }
-
         public IEnumerable<IExternalSearchQuery> BuildQueries(ExecutionContext context, IExternalSearchRequest request, IDictionary<string, object> config,
             IProvider provider)
         {
-            return InternalBuildQueries(context, request, config);
+            return InternalBuildQueries(context, request, new DuckDuckGoExternalSearchJobData(config));
         }
 
         public IEnumerable<IExternalSearchQueryResult> ExecuteSearch(ExecutionContext context, IExternalSearchQuery query, IDictionary<string, object> config, IProvider provider)
