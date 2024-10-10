@@ -34,7 +34,7 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
     public class DuckDuckGoExternalSearchProvider : ExternalSearchProviderBase, IExtendedEnricherMetadata, IConfigurableExternalSearchProvider
     {
 
-        private static readonly EntityType[] AcceptedEntityTypes = { EntityType.Organization };
+        private static readonly EntityType[] DefaultAcceptedEntityTypes = { EntityType.Organization };
 
 
         /**********************************************************************************************************
@@ -46,7 +46,7 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
         /// Initializes a new instance of the <see cref="DuckDuckGoExternalSearchProvider" /> class.
         /// </summary>
         public DuckDuckGoExternalSearchProvider()
-            : base(DuckDuckGoConstants.ProviderId, AcceptedEntityTypes)
+            : base(DuckDuckGoConstants.ProviderId, DefaultAcceptedEntityTypes)
         {
         }
 
@@ -402,7 +402,14 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
 
         public IEnumerable<EntityType> Accepts(IDictionary<string, object> config, IProvider provider)
         {
-            return AcceptedEntityTypes;
+
+            var configurations = new DuckDuckGoExternalSearchJobData(config);
+            if (!string.IsNullOrWhiteSpace(configurations.AcceptedEntityType))
+            {
+                return new EntityType[] { configurations.AcceptedEntityType };
+            }
+
+            return DefaultAcceptedEntityTypes;
         }
 
         public IEnumerable<IExternalSearchQuery> BuildQueries(ExecutionContext context, IExternalSearchRequest request, IDictionary<string, object> config,
