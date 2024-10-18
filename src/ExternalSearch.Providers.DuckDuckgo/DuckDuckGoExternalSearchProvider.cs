@@ -28,6 +28,7 @@ using RestSharp;
 using EntityType = CluedIn.Core.Data.EntityType;
 using Neo4j.Driver;
 using CluedIn.ExternalSearch.Provider;
+using CluedIn.Core.Data.Vocabularies;
 
 namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
 {
@@ -309,6 +310,51 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
                         break;
                     case "youtubeChannel":
                         metadata.Properties[DuckDuckGoVocabulary.Organization.YouTubeChannel] = content.Value.PrintIfAvailable();
+                        break;
+                    case "areaServed":
+                        metadata.Properties[DuckDuckGoVocabulary.Organization.AreaServed] = content.Value.PrintIfAvailable();
+                        break;
+                    case "formerlyCalled":
+                        metadata.Properties[DuckDuckGoVocabulary.Organization.FormerlyCalled] = content.Value.PrintIfAvailable();
+                        break;
+                    case "founders":
+                        metadata.Properties[DuckDuckGoVocabulary.Organization.Founders] = content.Value.PrintIfAvailable();
+                        break;
+                    case "imdbID":
+                        metadata.Properties[DuckDuckGoVocabulary.Organization.ImdbID] = content.Value.PrintIfAvailable();
+                        break;
+                    case "instanceOf":
+                        metadata.Properties[DuckDuckGoVocabulary.Organization.InstanceOf] = content.Value.PrintIfAvailable();
+                        break;
+                    case "keyPeople":
+                        metadata.Properties[DuckDuckGoVocabulary.Organization.KeyPeople] = content.Value.PrintIfAvailable();
+                        break;
+                    case "parent":
+                        metadata.Properties[DuckDuckGoVocabulary.Organization.Parent] = content.Value.PrintIfAvailable();
+                        break;
+                    case "products":
+                        metadata.Properties[DuckDuckGoVocabulary.Organization.Products] = content.Value.PrintIfAvailable();
+                        break;
+                    case "subsidiaries":
+                        metadata.Properties[DuckDuckGoVocabulary.Organization.Subsidiaries] = content.Value.PrintIfAvailable();
+                        break;
+                    case "tradedAs":
+                        metadata.Properties[DuckDuckGoVocabulary.Organization.TradedAs] = content.Value.PrintIfAvailable();
+                        break;
+                    case "type":
+                        metadata.Properties[DuckDuckGoVocabulary.Organization.InfoboxType] = content.Value.PrintIfAvailable();
+                        break;
+                    case "wikidataAliases":
+                        metadata.Properties[DuckDuckGoVocabulary.Organization.WikidataAliases] = content.Value.PrintIfAvailable();
+                        break;
+                    case "wikidataDescription":
+                        metadata.Properties[DuckDuckGoVocabulary.Organization.WikidataDescription] = content.Value.PrintIfAvailable();
+                        break;
+                    case "wikidataId":
+                        metadata.Properties[DuckDuckGoVocabulary.Organization.WikidataId] = content.Value.PrintIfAvailable();
+                        break;
+                    case "wikidataLabel":
+                        metadata.Properties[DuckDuckGoVocabulary.Organization.WikidataLabel] = content.Value.PrintIfAvailable();
                         break;
                     default:
                         metadata.Properties[DuckDuckGoVocabulary.Infobox.KeyPrefix + DuckDuckGoVocabulary.Infobox.KeySeparator + label] = content.Value.PrintIfAvailable();
