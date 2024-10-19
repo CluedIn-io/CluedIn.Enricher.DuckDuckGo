@@ -42,18 +42,6 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo.Vocabularies
 
             // Results
             this.Websites         = this.Add(new VocabularyKey("websites"));
-
-            // Infobox
-            this.Industry         = this.Add(new VocabularyKey("industry"));
-            this.Founded          = this.Add(new VocabularyKey("founded"));
-            this.Revenue          = this.Add(new VocabularyKey("revenue"));
-            this.Employees        = this.Add(new VocabularyKey("employees"));
-            this.GitHubProfile    = this.Add(new VocabularyKey("gitHubProfile"));
-            this.TwitterProfile   = this.Add(new VocabularyKey("twitterProfile"));
-            this.FacebookProfile  = this.Add(new VocabularyKey("facebookProfile"));
-            this.InstagramProfile = this.Add(new VocabularyKey("instagramProfile"));
-            this.YouTubeChannel   = this.Add(new VocabularyKey("youtubeChannel"));
-
         }
 
         public VocabularyKey Score { get; set; }
@@ -77,16 +65,5 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo.Vocabularies
 
         // Results
         public VocabularyKey Websites { get; internal set; }
-
-        // Infobox
-        public VocabularyKey Industry { get; internal set; }
-        public VocabularyKey Founded { get; internal set; }
-        public VocabularyKey Revenue { get; internal set; }
-        public VocabularyKey Employees { get; internal set; }
-        public VocabularyKey GitHubProfile { get; internal set; }
-        public VocabularyKey TwitterProfile { get; internal set; }
-        public VocabularyKey FacebookProfile { get; internal set; }
-        public VocabularyKey InstagramProfile { get; internal set; }
-        public VocabularyKey YouTubeChannel { get; internal set; }
     }
 }

@@ -28,6 +28,8 @@ using RestSharp;
 using EntityType = CluedIn.Core.Data.EntityType;
 using Neo4j.Driver;
 using CluedIn.ExternalSearch.Provider;
+using CluedIn.Core.Data.Vocabularies.Models;
+using CluedIn.Core.Data.Vocabularies;
 
 namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
 {
@@ -181,7 +183,7 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
 
             clue.Data.OriginProviderDefinitionId = this.Id;
 
-            this.PopulateMetadata(clue.Data.EntityData, resultItem, request);
+            this.PopulateMetadata(clue.Data.EntityData, resultItem, request, context);
 
             if (resultItem.Data.ImageIsLogo == 1 && resultItem.Data.Image != null)
                 this.DownloadPreviewImage(context, resultItem.Data.Image, clue);
@@ -197,7 +199,7 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
             if (resultItem.Data.Entity != "company")
                 return null;
 
-            return this.CreateMetadata(resultItem, request);
+            return this.CreateMetadata(resultItem, request, context);
         }
 
         public override IPreviewImage GetPrimaryEntityPreviewImage(ExecutionContext context, IExternalSearchQueryResult result, IExternalSearchRequest request)
@@ -222,16 +224,16 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
             return null;
         }
 
-        private IEntityMetadata CreateMetadata(IExternalSearchQueryResult<SearchResult> resultItem, IExternalSearchRequest request)
+        private IEntityMetadata CreateMetadata(IExternalSearchQueryResult<SearchResult> resultItem, IExternalSearchRequest request, ExecutionContext context)
         {
             var metadata = new EntityMetadataPart();
 
-            this.PopulateMetadata(metadata, resultItem, request);
+            this.PopulateMetadata(metadata, resultItem, request, context);
 
             return metadata;
         }
 
-        private void PopulateMetadata(IEntityMetadata metadata, IExternalSearchQueryResult<SearchResult> resultItem, IExternalSearchRequest request)
+        private void PopulateMetadata(IEntityMetadata metadata, IExternalSearchQueryResult<SearchResult> resultItem, IExternalSearchRequest request, ExecutionContext context)
         {
             var code = new EntityCode(request.EntityMetaData.EntityType, CodeOrigin.CluedIn.CreateSpecific("duckDuckGo"), request.EntityMetaData.OriginEntityCode.Value);
 
@@ -277,42 +279,36 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
             }
 
             // Infobox
+            var vocabularyRepositoryType = typeof(CluedIn.Integration.PrivateServices.PrivateServicesComponent).Assembly.GetType("CluedIn.Integration.PrivateServices.Vocabularies.IPrivateVocabularyRepository");
+
+            var vocabRepository = context.ApplicationContext.Container.Resolve(vocabularyRepositoryType);
+
+            var getVocabMethodInfo = vocabRepository.GetType().GetMethod("GetVocabularyByKeyPrefix");
+            var getVocabKeyMethodInfo = vocabRepository.GetType().GetMethod("GetVocabularyKeyByFullName");
+            var addVocabMethodInfo = vocabRepository.GetType().GetMethod("AddVocabulary");
+            var addVocabKeyMethodInfo = vocabRepository.GetType().GetMethod("AddVocabularyKey");
+
+            Guid vocabId = Guid.Empty;
+
+            IVocabulary existingVocab = (IVocabulary)getVocabMethodInfo.Invoke(vocabRepository, new object[] { "duckDuckGo.organization", false });
+
+            if (existingVocab == null || existingVocab?.KeyPrefix != "duckDuckGo.organization") {
+                var newVocab = new AddVocabularyModel { VocabularyName = "DuckDuckGo Organization", KeyPrefix = "duckDuckGo.organization", Grouping = EntityType.Organization };
+                vocabId = (Guid)addVocabMethodInfo.Invoke(vocabRepository, new object[] { newVocab, Guid.Empty.ToString(), context.Organization.Id });
+            } else
+            {
+                vocabId = existingVocab.VocabularyId;
+            }
+
             foreach (var content in resultItem.Data.Infobox.Content)
             {
                 string label = FormatLabelToProperty(content.Label);
-
-                switch (label)
+                VocabularyKey existingVocabKey = (VocabularyKey)getVocabKeyMethodInfo.Invoke(vocabRepository, new object[] { label });
+                if (label != null && existingVocabKey == null)
                 {
-                    case "industry":
-                        metadata.Properties[DuckDuckGoVocabulary.Organization.Industry] = content.Value.PrintIfAvailable();
-                        break;
-                    case "founded":
-                        metadata.Properties[DuckDuckGoVocabulary.Organization.Founded] = content.Value.PrintIfAvailable();
-                        break;
-                    case "revenue":
-                        metadata.Properties[DuckDuckGoVocabulary.Organization.Revenue] = content.Value.PrintIfAvailable();
-                        break;
-                    case "employees":
-                        metadata.Properties[DuckDuckGoVocabulary.Organization.Employees] = content.Value.PrintIfAvailable();
-                        break;
-                    case "gitHubProfile":
-                        metadata.Properties[DuckDuckGoVocabulary.Organization.GitHubProfile] = content.Value.PrintIfAvailable();
-                        break;
-                    case "twitterProfile":
-                        metadata.Properties[DuckDuckGoVocabulary.Organization.TwitterProfile] = content.Value.PrintIfAvailable();
-                        break;
-                    case "facebookProfile":
-                        metadata.Properties[DuckDuckGoVocabulary.Organization.FacebookProfile] = content.Value.PrintIfAvailable();
-                        break;
-                    case "instagramProfile":
-                        metadata.Properties[DuckDuckGoVocabulary.Organization.InstagramProfile] = content.Value.PrintIfAvailable();
-                        break;
-                    case "youtubeChannel":
-                        metadata.Properties[DuckDuckGoVocabulary.Organization.YouTubeChannel] = content.Value.PrintIfAvailable();
-                        break;
-                    default:
-                        metadata.Properties[DuckDuckGoVocabulary.Infobox.KeyPrefix + DuckDuckGoVocabulary.Infobox.KeySeparator + label] = content.Value.PrintIfAvailable();
-                        break;
+                    var newVocabKey = new AddVocabularyKeyModel { VocabularyId = vocabId, DisplayName = "infobox-" + label, GroupName = "DuckDuckGo Organization Infobox", Name = "infobox" + DuckDuckGoVocabulary.Infobox.KeySeparator + label, DataType = VocabularyKeyDataType.Text, IsVisible = true, Storage = VocabularyKeyStorage.Keyword };
+                    addVocabKeyMethodInfo.Invoke(vocabRepository, new object[] { newVocabKey, context, Guid.Empty.ToString(), true });
+                    metadata.Properties[DuckDuckGoVocabulary.Infobox.KeyPrefix + DuckDuckGoVocabulary.Infobox.KeySeparator + label] = content.Value.PrintIfAvailable();
                 }
             }
 
