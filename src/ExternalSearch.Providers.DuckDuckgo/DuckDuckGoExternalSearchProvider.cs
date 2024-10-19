@@ -271,7 +271,7 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
 
             // Related Topics
             var relatedTopics = resultItem.Data.RelatedTopics;
-            for (int i = 0; i < relatedTopics.Count(); i++)
+            for (int i = 0; i < relatedTopics.Count; i++)
             {
                 metadata.Properties[DuckDuckGoVocabulary.RelatedTopics.KeyPrefix + DuckDuckGoVocabulary.RelatedTopics.KeySeparator + $"{i}.text"]     = relatedTopics[i].Text.PrintIfAvailable();
                 metadata.Properties[DuckDuckGoVocabulary.RelatedTopics.KeyPrefix + DuckDuckGoVocabulary.RelatedTopics.KeySeparator + $"{i}.firstUrl"] = relatedTopics[i].FirstURL.PrintIfAvailable();
@@ -279,8 +279,14 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
             }
 
             // Infobox
-            var vocabularyRepositoryType = typeof(CluedIn.Integration.PrivateServices.PrivateServicesComponent).Assembly.GetType("CluedIn.Integration.PrivateServices.Vocabularies.IPrivateVocabularyRepository");
+            ProcessInfoboxVocabulary(metadata, resultItem, context);
 
+            metadata.Codes.Add(code);
+        }
+
+        private void ProcessInfoboxVocabulary(IEntityMetadata metadata, IExternalSearchQueryResult<SearchResult> resultItem, ExecutionContext context)
+        {
+            var vocabularyRepositoryType = typeof(CluedIn.Integration.PrivateServices.PrivateServicesComponent).Assembly.GetType("CluedIn.Integration.PrivateServices.Vocabularies.IPrivateVocabularyRepository");
             var vocabRepository = context.ApplicationContext.Container.Resolve(vocabularyRepositoryType);
 
             var getVocabMethodInfo = vocabRepository.GetType().GetMethod("GetVocabularyByKeyPrefix");
@@ -292,10 +298,12 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
 
             IVocabulary existingVocab = (IVocabulary)getVocabMethodInfo.Invoke(vocabRepository, new object[] { "duckDuckGo.organization", false });
 
-            if (existingVocab == null || existingVocab?.KeyPrefix != "duckDuckGo.organization") {
+            if (existingVocab == null || existingVocab?.KeyPrefix != "duckDuckGo.organization")
+            {
                 var newVocab = new AddVocabularyModel { VocabularyName = "DuckDuckGo Organization", KeyPrefix = "duckDuckGo.organization", Grouping = EntityType.Organization };
                 vocabId = (Guid)addVocabMethodInfo.Invoke(vocabRepository, new object[] { newVocab, Guid.Empty.ToString(), context.Organization.Id });
-            } else
+            }
+            else
             {
                 vocabId = existingVocab.VocabularyId;
             }
@@ -306,13 +314,20 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
                 VocabularyKey existingVocabKey = (VocabularyKey)getVocabKeyMethodInfo.Invoke(vocabRepository, new object[] { label });
                 if (label != null && existingVocabKey == null)
                 {
-                    var newVocabKey = new AddVocabularyKeyModel { VocabularyId = vocabId, DisplayName = "infobox-" + label, GroupName = "DuckDuckGo Organization Infobox", Name = "infobox" + DuckDuckGoVocabulary.Infobox.KeySeparator + label, DataType = VocabularyKeyDataType.Text, IsVisible = true, Storage = VocabularyKeyStorage.Keyword };
+                    var newVocabKey = new AddVocabularyKeyModel
+                    {
+                        VocabularyId = vocabId,
+                        DisplayName = "infobox-" + label,
+                        GroupName = "DuckDuckGo Organization Infobox",
+                        Name = "infobox" + DuckDuckGoVocabulary.Infobox.KeySeparator + label,
+                        DataType = VocabularyKeyDataType.Text,
+                        IsVisible = true,
+                        Storage = VocabularyKeyStorage.Keyword
+                    };
                     addVocabKeyMethodInfo.Invoke(vocabRepository, new object[] { newVocabKey, context, Guid.Empty.ToString(), true });
                     metadata.Properties[DuckDuckGoVocabulary.Infobox.KeyPrefix + DuckDuckGoVocabulary.Infobox.KeySeparator + label] = content.Value.PrintIfAvailable();
                 }
             }
-
-            metadata.Codes.Add(code);
         }
 
         /// <summary>
