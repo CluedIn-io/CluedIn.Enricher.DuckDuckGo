@@ -28,7 +28,6 @@ using RestSharp;
 using EntityType = CluedIn.Core.Data.EntityType;
 using Neo4j.Driver;
 using CluedIn.ExternalSearch.Provider;
-using CluedIn.Core.Data.Vocabularies;
 
 namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
 {

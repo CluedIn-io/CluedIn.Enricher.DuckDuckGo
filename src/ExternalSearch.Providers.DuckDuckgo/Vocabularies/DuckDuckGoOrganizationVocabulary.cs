@@ -9,7 +9,6 @@
 
 using CluedIn.Core.Data;
 using CluedIn.Core.Data.Vocabularies;
-using CluedIn.Core.Data.Vocabularies.CluedIn;
 
 namespace CluedIn.ExternalSearch.Providers.DuckDuckGo.Vocabularies
 {
