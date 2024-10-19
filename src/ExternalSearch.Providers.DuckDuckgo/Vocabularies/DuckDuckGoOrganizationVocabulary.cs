@@ -144,7 +144,6 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo.Vocabularies
         public VocabularyKey Divisions { get; internal set; }
         public VocabularyKey Isin { get; internal set; }
         public VocabularyKey Founder { get; internal set; }
-
         public VocabularyKey Serviecs { get; internal set; }
     }
 }
