@@ -69,9 +69,19 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo.Vocabularies
             this.WikidataDescription = this.Add(new VocabularyKey("wikidataDescription"));
             this.WikidataId          = this.Add(new VocabularyKey("wikidataId"));
             this.WikidataLabel       = this.Add(new VocabularyKey("wikidataLabel"));
+            this.NumberOfEmployees   = this.Add(new VocabularyKey("numberOfEmployees"));
+            this.OfficialWebsite     = this.Add(new VocabularyKey("officialWebsite"));
+            this.OperatingIncome     = this.Add(new VocabularyKey("operatingIncome"));
+            this.TotalAssets         = this.Add(new VocabularyKey("totalAssets"));
+            this.TotalEquity         = this.Add(new VocabularyKey("totalEquity"));
+            this.InfoboxWebsite      = this.Add(new VocabularyKey("website2"));
+            this.Divisions           = this.Add(new VocabularyKey("divisions"));
+            this.Isin                = this.Add(new VocabularyKey("isin"));
+            this.Founder             = this.Add(new VocabularyKey("founder"));
+            this.Serviecs            = this.Add(new VocabularyKey("services"));
 
             // Related Topics
-            for(int i = 0; i <= 50; i++)
+            for (int i = 0; i <= 50; i++)
             {
                 this.Add(new DuckDuckGoRelatedTopicsVocabulary().AsCompositeKey($"relatedTopics-{i}.firstUrl", VocabularyKeyDataType.Text, VocabularyKeyVisibility.Visible));
                 this.Add(new DuckDuckGoRelatedTopicsVocabulary().AsCompositeKey($"relatedTopics-{i}.text", VocabularyKeyDataType.Text, VocabularyKeyVisibility.Visible));
@@ -126,5 +136,16 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo.Vocabularies
         public VocabularyKey WikidataDescription { get; internal set; }
         public VocabularyKey WikidataId { get; internal set; }
         public VocabularyKey WikidataLabel { get; internal set; }
+        public VocabularyKey NumberOfEmployees { get; internal set; }
+        public VocabularyKey OfficialWebsite { get; internal set; }
+        public VocabularyKey OperatingIncome { get; internal set; }
+        public VocabularyKey TotalAssets { get; internal set; }
+        public VocabularyKey TotalEquity { get; internal set; }
+        public VocabularyKey InfoboxWebsite { get; internal set; }
+        public VocabularyKey Divisions { get; internal set; }
+        public VocabularyKey Isin { get; internal set; }
+        public VocabularyKey Founder { get; internal set; }
+
+        public VocabularyKey Serviecs { get; internal set; }
     }
 }

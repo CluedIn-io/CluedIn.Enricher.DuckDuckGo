@@ -356,6 +356,36 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
                     case "wikidataLabel":
                         metadata.Properties[DuckDuckGoVocabulary.Organization.WikidataLabel] = content.Value.PrintIfAvailable();
                         break;
+                    case "numberOfEmployees":
+                        metadata.Properties[DuckDuckGoVocabulary.Organization.NumberOfEmployees] = content.Value.PrintIfAvailable();
+                        break;
+                    case "officialWebsite":
+                        metadata.Properties[DuckDuckGoVocabulary.Organization.OfficialWebsite] = content.Value.PrintIfAvailable();
+                        break;
+                    case "operatingIncome":
+                        metadata.Properties[DuckDuckGoVocabulary.Organization.OperatingIncome] = content.Value.PrintIfAvailable();
+                        break;
+                    case "totalAssets":
+                        metadata.Properties[DuckDuckGoVocabulary.Organization.TotalAssets] = content.Value.PrintIfAvailable();
+                        break;
+                    case "totalEquity":
+                        metadata.Properties[DuckDuckGoVocabulary.Organization.TotalEquity] = content.Value.PrintIfAvailable();
+                        break;
+                    case "website":
+                        metadata.Properties[DuckDuckGoVocabulary.Organization.InfoboxWebsite] = content.Value.PrintIfAvailable();
+                        break;
+                    case "divisions":
+                        metadata.Properties[DuckDuckGoVocabulary.Organization.Divisions] = content.Value.PrintIfAvailable();
+                        break;
+                    case "isin":
+                        metadata.Properties[DuckDuckGoVocabulary.Organization.Isin] = content.Value.PrintIfAvailable();
+                        break;
+                    case "founder":
+                        metadata.Properties[DuckDuckGoVocabulary.Organization.Founder] = content.Value.PrintIfAvailable();
+                        break;
+                    case "services":
+                        metadata.Properties[DuckDuckGoVocabulary.Organization.Serviecs] = content.Value.PrintIfAvailable();
+                        break;
                     default:
                         metadata.Properties[DuckDuckGoVocabulary.Infobox.KeyPrefix + DuckDuckGoVocabulary.Infobox.KeySeparator + label] = content.Value.PrintIfAvailable();
                         break;
