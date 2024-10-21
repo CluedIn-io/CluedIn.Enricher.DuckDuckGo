@@ -335,15 +335,19 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
 
             var response = client.ExecuteTaskAsync(request).Result;
 
+            var content = string.Empty;
             T responseData;
-            if (response.StatusCode == HttpStatusCode.OK)
-                responseData = JsonConvert.DeserializeObject<T>(response.Content);
+            if (response.StatusCode == HttpStatusCode.OK
+                || (response.StatusCode == HttpStatusCode.Accepted && !string.IsNullOrEmpty(content)))
+            {
+                responseData = JsonConvert.DeserializeObject<T>(content);
+            }
             else if (response.StatusCode == HttpStatusCode.NoContent || response.StatusCode == HttpStatusCode.NotFound)
                 responseData = default(T);
             else if (response.ErrorException != null)
                 throw new AggregateException(response.ErrorException.Message, response.ErrorException);
             else
-                throw new ApplicationException("Could not execute external search query - StatusCode:" + response.StatusCode + "; Content: " + response.Content);
+                throw new ApplicationException("Could not execute external search query - StatusCode:" + response.StatusCode + "; Content: " + content);
 
             return responseData;
         }
