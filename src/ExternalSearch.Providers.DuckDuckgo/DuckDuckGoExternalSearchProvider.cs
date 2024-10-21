@@ -310,6 +310,81 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
                     case "youtubeChannel":
                         metadata.Properties[DuckDuckGoVocabulary.Organization.YouTubeChannel] = content.Value.PrintIfAvailable();
                         break;
+                    case "areaServed":
+                        metadata.Properties[DuckDuckGoVocabulary.Organization.AreaServed] = content.Value.PrintIfAvailable();
+                        break;
+                    case "formerlyCalled":
+                        metadata.Properties[DuckDuckGoVocabulary.Organization.FormerlyCalled] = content.Value.PrintIfAvailable();
+                        break;
+                    case "founders":
+                        metadata.Properties[DuckDuckGoVocabulary.Organization.Founders] = content.Value.PrintIfAvailable();
+                        break;
+                    case "imdbID":
+                        metadata.Properties[DuckDuckGoVocabulary.Organization.ImdbID] = content.Value.PrintIfAvailable();
+                        break;
+                    case "instanceOf":
+                        metadata.Properties[DuckDuckGoVocabulary.Organization.InstanceOf] = content.Value.PrintIfAvailable();
+                        break;
+                    case "keyPeople":
+                        metadata.Properties[DuckDuckGoVocabulary.Organization.KeyPeople] = content.Value.PrintIfAvailable();
+                        break;
+                    case "parent":
+                        metadata.Properties[DuckDuckGoVocabulary.Organization.Parent] = content.Value.PrintIfAvailable();
+                        break;
+                    case "products":
+                        metadata.Properties[DuckDuckGoVocabulary.Organization.Products] = content.Value.PrintIfAvailable();
+                        break;
+                    case "subsidiaries":
+                        metadata.Properties[DuckDuckGoVocabulary.Organization.Subsidiaries] = content.Value.PrintIfAvailable();
+                        break;
+                    case "tradedAs":
+                        metadata.Properties[DuckDuckGoVocabulary.Organization.TradedAs] = content.Value.PrintIfAvailable();
+                        break;
+                    case "type":
+                        metadata.Properties[DuckDuckGoVocabulary.Organization.InfoboxType] = content.Value.PrintIfAvailable();
+                        break;
+                    case "wikidataAliases":
+                        metadata.Properties[DuckDuckGoVocabulary.Organization.WikidataAliases] = content.Value.PrintIfAvailable();
+                        break;
+                    case "wikidataDescription":
+                        metadata.Properties[DuckDuckGoVocabulary.Organization.WikidataDescription] = content.Value.PrintIfAvailable();
+                        break;
+                    case "wikidataId":
+                        metadata.Properties[DuckDuckGoVocabulary.Organization.WikidataId] = content.Value.PrintIfAvailable();
+                        break;
+                    case "wikidataLabel":
+                        metadata.Properties[DuckDuckGoVocabulary.Organization.WikidataLabel] = content.Value.PrintIfAvailable();
+                        break;
+                    case "numberOfEmployees":
+                        metadata.Properties[DuckDuckGoVocabulary.Organization.NumberOfEmployees] = content.Value.PrintIfAvailable();
+                        break;
+                    case "officialWebsite":
+                        metadata.Properties[DuckDuckGoVocabulary.Organization.OfficialWebsite] = content.Value.PrintIfAvailable();
+                        break;
+                    case "operatingIncome":
+                        metadata.Properties[DuckDuckGoVocabulary.Organization.OperatingIncome] = content.Value.PrintIfAvailable();
+                        break;
+                    case "totalAssets":
+                        metadata.Properties[DuckDuckGoVocabulary.Organization.TotalAssets] = content.Value.PrintIfAvailable();
+                        break;
+                    case "totalEquity":
+                        metadata.Properties[DuckDuckGoVocabulary.Organization.TotalEquity] = content.Value.PrintIfAvailable();
+                        break;
+                    case "website":
+                        metadata.Properties[DuckDuckGoVocabulary.Organization.InfoboxWebsite] = content.Value.PrintIfAvailable();
+                        break;
+                    case "divisions":
+                        metadata.Properties[DuckDuckGoVocabulary.Organization.Divisions] = content.Value.PrintIfAvailable();
+                        break;
+                    case "isin":
+                        metadata.Properties[DuckDuckGoVocabulary.Organization.Isin] = content.Value.PrintIfAvailable();
+                        break;
+                    case "founder":
+                        metadata.Properties[DuckDuckGoVocabulary.Organization.Founder] = content.Value.PrintIfAvailable();
+                        break;
+                    case "services":
+                        metadata.Properties[DuckDuckGoVocabulary.Organization.Serviecs] = content.Value.PrintIfAvailable();
+                        break;
                     default:
                         metadata.Properties[DuckDuckGoVocabulary.Infobox.KeyPrefix + DuckDuckGoVocabulary.Infobox.KeySeparator + label] = content.Value.PrintIfAvailable();
                         break;
