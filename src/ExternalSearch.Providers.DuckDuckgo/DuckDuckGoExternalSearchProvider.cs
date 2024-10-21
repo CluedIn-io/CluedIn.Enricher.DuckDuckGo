@@ -325,8 +325,8 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
                         Storage = VocabularyKeyStorage.Keyword
                     };
                     addVocabKeyMethodInfo.Invoke(vocabRepository, new object[] { newVocabKey, context, Guid.Empty.ToString(), true });
-                    metadata.Properties[DuckDuckGoVocabulary.Infobox.KeyPrefix + DuckDuckGoVocabulary.Infobox.KeySeparator + label] = content.Value.PrintIfAvailable();
                 }
+                metadata.Properties[DuckDuckGoVocabulary.Infobox.KeyPrefix + DuckDuckGoVocabulary.Infobox.KeySeparator + label] = content.Value.PrintIfAvailable();
             }
         }
 
