@@ -75,7 +75,7 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
         {
             var configurableAcceptedEntityTypes = this.Accepts(config).ToArray();
 
-            return configurableAcceptedEntityTypes.Any(entityTypeToEvaluate.Is);
+            return configurableAcceptedEntityTypes.SafeEnumerate().Any(entityTypeToEvaluate.Is);
         }
 
         public IEnumerable<IExternalSearchQuery> BuildQueries(ExecutionContext context, IExternalSearchRequest request, IDictionary<string, object> config, IProvider provider)
@@ -88,8 +88,8 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
 
             var existingResults = request.GetQueryResults<SearchResult>(this).Where(r => r.Data.Infobox != null).ToList();
 
-            Func<string, bool> existingResultsFilter    = value => existingResults.Any(r => string.Equals(r.Data.Infobox.Meta.First().Value, value, StringComparison.InvariantCultureIgnoreCase));
-            Func<string, bool> existingResultsFilter2   = value => existingResults.Any(r => r.Data.Results.Any(v => v.FirstURL.Contains(value)));
+            Func<string, bool> existingResultsFilter    = value => existingResults.SafeEnumerate().Any(r => string.Equals(r.Data.Infobox.Meta.First().Value, value, StringComparison.InvariantCultureIgnoreCase));
+            Func<string, bool> existingResultsFilter2   = value => existingResults.SafeEnumerate().Any(r => r.Data.Results.SafeEnumerate().Any(v => v.FirstURL.Contains(value)));
             Func<string, bool> nameFilter               = value => OrganizationFilters.NameFilter(context, value);
 
             // Query Input
@@ -452,7 +452,7 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
         /// <returns>A comma separated string containing the properties</returns>
         private static string JoinValues<T>(List<T> items, Func<T, string> property, string separator = ";")
         {
-            if (items != null && items.Any())
+            if (items != null && items.SafeEnumerate().Any())
             {
                 return String.Join(separator, items.Where(x => !String.IsNullOrEmpty(property(x))).ToList().ConvertAll(x => property(x)));
             }
