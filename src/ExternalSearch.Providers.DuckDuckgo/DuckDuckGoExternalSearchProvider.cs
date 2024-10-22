@@ -26,8 +26,9 @@ using CluedIn.ExternalSearch.Providers.DuckDuckGo.Vocabularies;
 using Newtonsoft.Json;
 using RestSharp;
 using EntityType = CluedIn.Core.Data.EntityType;
-using Neo4j.Driver;
 using CluedIn.ExternalSearch.Provider;
+using Microsoft.Extensions.Logging;
+using System.Web;
 
 namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
 {
@@ -150,14 +151,17 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
 
         public IEnumerable<IExternalSearchQueryResult> ExecuteSearch(ExecutionContext context, IExternalSearchQuery query, IDictionary<string, object> config, IProvider provider)
         {
-            var id = query.QueryParameters[ExternalSearchQueryParameter.Name].FirstOrDefault();
+            var name = query.QueryParameters[ExternalSearchQueryParameter.Name].FirstOrDefault();
 
-            if (string.IsNullOrEmpty(id))
+            if (string.IsNullOrEmpty(name.Trim()))
                 yield break;
 
-            var client = new RestClient("https://api.duckduckgo.com");
+            var client = new RestClient("https://api.duckduckgo.com")
+            {
+                UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0"
+            };
 
-            var responseData = JsonRequestWrapper<SearchResult>(client, string.Format("?q={0}&format=json", id), Method.GET);
+            var responseData = JsonRequestWrapper(context, client, name, Method.GET);
 
             if (responseData?.Infobox != null)
                 yield return new ExternalSearchQueryResult<SearchResult>(query, responseData);
@@ -327,27 +331,57 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
         /// <param name="parameter">The parameters for the request</param>
         /// <param name="callback">Pass additional information to the request (e.g. headers)</param>
         /// <returns>A deserialized object</returns>
-        private static T JsonRequestWrapper<T>(IRestClient client, string parameter, Method method, Action<IRestRequest> callback = null)
-        {
-            var request = new RestRequest(parameter, method);
-
-            callback?.Invoke(request);
-
-            var response = client.ExecuteTaskAsync(request).Result;
-
-            var content = string.Empty;
-            T responseData;
-            if (response.StatusCode == HttpStatusCode.OK
-                || (response.StatusCode == HttpStatusCode.Accepted && !string.IsNullOrEmpty(content)))
+        private static SearchResult JsonRequestWrapper(ExecutionContext context, IRestClient client, string name, Method method, Action<IRestRequest> callback = null)
+        {            
+            SearchResult responseData;
+            var queryName = name;
+            var retryCount = 0;
+            do
             {
-                responseData = JsonConvert.DeserializeObject<T>(content);
+                var queryParameters = HttpUtility.ParseQueryString("");
+                queryParameters.Add("q", queryName.Trim());
+                queryParameters.Add("format", "json");
+
+                var request = new RestRequest($"?{queryParameters}", method);
+                callback?.Invoke(request);
+                var response = client.Execute(request);
+
+                var content = response.Content;
+                context.Log.LogDebug("{source} RetryCount: {count}; StatusCode: {statusCode}; Query: {query} Content: {content};", "[DuckDuckGo]", retryCount, response.StatusCode, queryParameters.ToString(), content);
+                if (response.StatusCode == HttpStatusCode.OK || response.StatusCode == HttpStatusCode.Accepted)
+                {
+                    responseData = JsonConvert.DeserializeObject<SearchResult>(content);
+
+                    if (response.StatusCode == HttpStatusCode.Accepted && responseData.Infobox == null)
+                    {
+                        if (retryCount >= 2 || Uri.TryCreate(queryName, UriKind.RelativeOrAbsolute, out _))
+                        {
+                            throw new ApplicationException("Received an unexpected HTTP status when executing the request",
+                                new ApplicationException("Could not execute external search query - " +
+                                "StatusCode:" + response.StatusCode + "; Content: " + content));
+                        }
+                        else if (retryCount == 0)
+                            queryName = $"{name.Trim()} company";
+                        else if (retryCount == 1)
+                            queryName = $"{name.Trim()} corporation";
+
+                        retryCount++;
+                        System.Threading.Thread.Sleep(30000);
+
+                        continue;
+                    }
+
+                    break;
+                }
+                else if (response.StatusCode == HttpStatusCode.NoContent || response.StatusCode == HttpStatusCode.NotFound)
+                    return null;
+                else if (response.ErrorException != null)
+                    throw new AggregateException(response.ErrorException.Message, response.ErrorException);
+                else
+                    throw new ApplicationException("Could not execute external search query - " +
+                        "StatusCode:" + response.StatusCode + "; Content: " + content);
             }
-            else if (response.StatusCode == HttpStatusCode.NoContent || response.StatusCode == HttpStatusCode.NotFound)
-                responseData = default(T);
-            else if (response.ErrorException != null)
-                throw new AggregateException(response.ErrorException.Message, response.ErrorException);
-            else
-                throw new ApplicationException("Could not execute external search query - StatusCode:" + response.StatusCode + "; Content: " + content);
+            while (retryCount < 2);
 
             return responseData;
         }
