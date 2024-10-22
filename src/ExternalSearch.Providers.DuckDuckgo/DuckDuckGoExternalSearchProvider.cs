@@ -30,6 +30,7 @@ using Neo4j.Driver;
 using CluedIn.ExternalSearch.Provider;
 using CluedIn.Core.Data.Vocabularies.Models;
 using CluedIn.Core.Data.Vocabularies;
+using CluedIn.Core.Streams.Models;
 
 namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
 {
@@ -293,15 +294,27 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
             var getVocabKeyMethodInfo = vocabRepository.GetType().GetMethod("GetVocabularyKeyByFullName");
             var addVocabMethodInfo = vocabRepository.GetType().GetMethod("AddVocabulary");
             var addVocabKeyMethodInfo = vocabRepository.GetType().GetMethod("AddVocabularyKey");
-
             Guid vocabId = Guid.Empty;
 
-            IVocabulary existingVocab = (IVocabulary)getVocabMethodInfo.Invoke(vocabRepository, new object[] { "duckDuckGo.organization", false });
+            var cacheKey = "DuckDuckGo-GetExistingVocabulary";
+            var cached = context.ApplicationContext.System.Cache.GetItem<IVocabulary>(cacheKey);
+
+            IVocabulary existingVocab;
+
+            if (cached != null) 
+            {
+                existingVocab = cached;
+            } else
+            {
+                existingVocab = (IVocabulary)getVocabMethodInfo.Invoke(vocabRepository, new object[] { "duckDuckGo.organization", false });
+                context.ApplicationContext.System.Cache.SetItem(cacheKey, existingVocab, DateTimeOffset.Now.AddMinutes(10));
+            }
 
             if (existingVocab == null || existingVocab?.KeyPrefix != "duckDuckGo.organization")
             {
                 var newVocab = new AddVocabularyModel { VocabularyName = "DuckDuckGo Organization", KeyPrefix = "duckDuckGo.organization", Grouping = EntityType.Organization };
                 vocabId = (Guid)addVocabMethodInfo.Invoke(vocabRepository, new object[] { newVocab, Guid.Empty.ToString(), context.Organization.Id });
+
             }
             else
             {
