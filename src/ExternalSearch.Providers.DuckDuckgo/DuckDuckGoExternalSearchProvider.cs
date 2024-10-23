@@ -385,6 +385,9 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
                     case "services":
                         metadata.Properties[DuckDuckGoVocabulary.Organization.Serviecs] = content.Value.PrintIfAvailable();
                         break;
+                    case null:
+                        metadata.Properties[DuckDuckGoVocabulary.Infobox.KeyPrefix] = content.Value.PrintIfAvailable();
+                        break;
                     default:
                         metadata.Properties[DuckDuckGoVocabulary.Infobox.KeyPrefix + DuckDuckGoVocabulary.Infobox.KeySeparator + label] = content.Value.PrintIfAvailable();
                         break;
@@ -430,8 +433,8 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
         /// <returns>The formatted label</returns>
         private static string FormatLabelToProperty(string label)
         {
-            if (string.IsNullOrEmpty(label))
-                return string.Empty;
+            if (string.IsNullOrWhiteSpace(label))
+                return null;
 
             return String.Join("", label.Split(' ').Select((x, i) => i == 0 ? x.ToLower() : FirstCharacterToUpper(x)));
         }
