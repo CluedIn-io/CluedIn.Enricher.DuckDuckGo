@@ -18,7 +18,7 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo.Vocabularies
         {
             this.VocabularyName        = "DuckDuckGo Organization Infobox Properties";
             this.KeyPrefix             = "duckDuckGo.organization.infobox";
-            this.KeySeparator          = "-";
+            this.KeySeparator          = ".";
             this.Grouping              = EntityType.Organization;
             this.ShowInApplication     = true;
             this.ShowUrisInApplication = false;
