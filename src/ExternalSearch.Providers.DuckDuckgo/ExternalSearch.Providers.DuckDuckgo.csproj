@@ -7,6 +7,7 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="CluedIn.Core" />
+    <PackageReference Include="CluedIn.Integration.PrivateServices" />
     <PackageReference Include="CluedIn.ExternalSearch" />
     <PackageReference Include="CluedIn.Processing" />
     <PackageReference Include="CluedIn.Processing.Web" />
