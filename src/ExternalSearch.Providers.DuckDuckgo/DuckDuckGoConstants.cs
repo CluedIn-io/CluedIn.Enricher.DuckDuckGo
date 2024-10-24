@@ -31,7 +31,7 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckgo
                 {
                     displayName = "Accepted Entity Type",
                     type = "input",
-                    isRequired = false,
+                    isRequired = true,
                     name = KeyName.AcceptedEntityType
                 },
                 new Control()
