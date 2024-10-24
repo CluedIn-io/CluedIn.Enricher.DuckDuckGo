@@ -420,6 +420,9 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
         /// <returns>The formatted label</returns>
         private static string FormatLabelToProperty(string label)
         {
+            if (string.IsNullOrWhiteSpace(label))
+                return null;
+
             return String.Join("", label.Split(' ').Select((x, i) => i == 0 ? x.ToLower() : FirstCharacterToUpper(x)));
         }
 
