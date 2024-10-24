@@ -42,6 +42,14 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo.Vocabularies
 
             // Results
             this.Websites         = this.Add(new VocabularyKey("websites"));
+
+            // Related Topics
+            for (int i = 0; i <= 50; i++)
+            {
+                this.Add(new DuckDuckGoRelatedTopicsVocabulary().AsCompositeKey($"relatedTopics-{i}.firstUrl", VocabularyKeyDataType.Text, VocabularyKeyVisibility.Visible));
+                this.Add(new DuckDuckGoRelatedTopicsVocabulary().AsCompositeKey($"relatedTopics-{i}.text", VocabularyKeyDataType.Text, VocabularyKeyVisibility.Visible));
+                this.Add(new DuckDuckGoRelatedTopicsVocabulary().AsCompositeKey($"relatedTopics-{i}.icon", VocabularyKeyDataType.Text, VocabularyKeyVisibility.Visible));
+            }
         }
 
         public VocabularyKey Score { get; set; }
