@@ -26,8 +26,9 @@ using CluedIn.ExternalSearch.Providers.DuckDuckGo.Vocabularies;
 using Newtonsoft.Json;
 using RestSharp;
 using EntityType = CluedIn.Core.Data.EntityType;
-using Neo4j.Driver;
 using CluedIn.ExternalSearch.Provider;
+using Microsoft.Extensions.Logging;
+using System.Web;
 using CluedIn.Core.Data.Vocabularies.Models;
 using CluedIn.Core.Data.Vocabularies;
 using CluedIn.Core.Streams.Models;
@@ -153,19 +154,33 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
 
         public IEnumerable<IExternalSearchQueryResult> ExecuteSearch(ExecutionContext context, IExternalSearchQuery query, IDictionary<string, object> config, IProvider provider)
         {
-            var id = query.QueryParameters[ExternalSearchQueryParameter.Name].FirstOrDefault();
+            var name = query.QueryParameters[ExternalSearchQueryParameter.Name].FirstOrDefault();
 
-            if (string.IsNullOrEmpty(id))
+            if (string.IsNullOrWhiteSpace(name))
                 yield break;
 
-            var client = new RestClient("https://api.duckduckgo.com");
+            var client = new RestClient("https://api.duckduckgo.com")
+            {
+                // TODO rotating the useragent can help with throttling
+                UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0"
+            };
 
-            var responseData = JsonRequestWrapper<SearchResult>(client, string.Format("?q={0}&format=json", id), Method.GET);
+            foreach (var searchName in GetSearchVariants(name.Trim()))
+            {
+                var responseData = JsonRequestWrapper(client, searchName, Method.GET);
 
-            if (responseData?.Infobox != null)
+                if (responseData?.Infobox == null) continue;
+
                 yield return new ExternalSearchQueryResult<SearchResult>(query, responseData);
-            else
-                yield break;
+                break;
+            }
+        }
+
+        private IEnumerable<string> GetSearchVariants(string name)
+        {
+            yield return name;
+            yield return $"{name} company";
+            yield return $"{name} corporation";
         }
 
         public IEnumerable<Clue> BuildClues(ExecutionContext context, IExternalSearchQuery query, IExternalSearchQueryResult result, IExternalSearchRequest request, IDictionary<string, object> config, IProvider provider)
@@ -363,30 +378,39 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
         /// <summary>
         /// Wrapper around a request to ensure proper deserialization of the JSON.
         /// </summary>
-        /// <typeparam name="T">The model</typeparam>
-        /// <param name="client">An IRestClient for the request</param>
-        /// <param name="parameter">The parameters for the request</param>
-        /// <param name="callback">Pass additional information to the request (e.g. headers)</param>
-        /// <returns>A deserialized object</returns>
-        private static T JsonRequestWrapper<T>(IRestClient client, string parameter, Method method, Action<IRestRequest> callback = null)
+        private static SearchResult JsonRequestWrapper(IRestClient client, string name, Method method)
         {
-            var request = new RestRequest(parameter, method);
+            var queryParameters = HttpUtility.ParseQueryString("");
+            queryParameters.Add("q", name);
+            queryParameters.Add("format", "json");
+            queryParameters.Add("timestamp", DateTime.Now.Ticks.ToString());    // potentially helps with throttling
 
-            callback?.Invoke(request);
+            var request = new RestRequest($"?{queryParameters}", method);
+            var response = client.Execute(request);
 
-            var response = client.ExecuteTaskAsync(request).Result;
+            if (response.ErrorException != null)
+            {
+                System.Threading.Thread.Sleep(1000);   // sleeping as if there is an error with the remote server we don't want to burn through the queue
+                throw new ApplicationException($"Could not execute external search query - {response.ErrorException}");
+            }
 
-            T responseData;
-            if (response.StatusCode == HttpStatusCode.OK)
-                responseData = JsonConvert.DeserializeObject<T>(response.Content);
-            else if (response.StatusCode == HttpStatusCode.NoContent || response.StatusCode == HttpStatusCode.NotFound)
-                responseData = default(T);
-            else if (response.ErrorException != null)
-                throw new AggregateException(response.ErrorException.Message, response.ErrorException);
-            else
-                throw new ApplicationException("Could not execute external search query - StatusCode:" + response.StatusCode + "; Content: " + response.Content);
+            if (response.StatusCode is HttpStatusCode.NoContent or HttpStatusCode.NotFound)
+                return null;
 
-            return responseData;
+            var content = response.Content;
+
+            if (response.IsSuccessful)
+            {
+                var responseData = JsonConvert.DeserializeObject<SearchResult>(content);
+
+                if (responseData.Infobox != null) return responseData;
+
+                if (response.StatusCode != HttpStatusCode.Accepted) return responseData;
+
+                System.Threading.Thread.Sleep(30000);   // sleep as we are throttled
+            }
+
+            throw new ApplicationException($"Could not execute external search query - StatusCode:{response.StatusCode}; Content: {content}");
         }
 
         /// <summary>
