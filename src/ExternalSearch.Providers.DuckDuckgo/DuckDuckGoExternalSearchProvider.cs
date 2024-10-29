@@ -391,7 +391,7 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
                             break;
                     }
 
-                    var newUrlVocabKey = new AddVocabularyKeyModel
+                    var newVocabKey = new AddVocabularyKeyModel
                     {
                         VocabularyId = vocabId,
                         DisplayName = $"Related Topics {count} {displayNamePostFix}",
@@ -401,7 +401,7 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
                         IsVisible = true,
                         Storage = VocabularyKeyStorage.Keyword
                     };
-                    addVocabKeyMethodInfo.Invoke(vocabRepository, new object[] { newUrlVocabKey, context, Guid.Empty.ToString(), true });
+                    addVocabKeyMethodInfo.Invoke(vocabRepository, new object[] { newVocabKey, context, Guid.Empty.ToString(), true });
                 }
 
                 context.ApplicationContext.System.Cache.SetItem(cacheKey, new object(), DateTimeOffset.Now.AddMinutes(1));
