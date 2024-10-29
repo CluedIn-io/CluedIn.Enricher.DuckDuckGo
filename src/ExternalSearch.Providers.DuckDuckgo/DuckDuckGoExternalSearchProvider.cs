@@ -319,16 +319,16 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
             var relatedTopics = resultItem.Data.RelatedTopics;
             for (int i = 0; i < relatedTopics.Count; i++)
             {
-                if (!string.IsNullOrEmpty(relatedTopics[i].Text))
-                {
-                    CreateRelatedTopicsTextVocabularyKeyIfNecessary(context, vocabRepository, i, vocabId);
-                    metadata.Properties[DuckDuckGoVocabulary.RelatedTopics.KeyPrefix + DuckDuckGoVocabulary.RelatedTopics.KeySeparator + $"{i}.text"] = relatedTopics[i].Text.PrintIfAvailable();
-                }
-
                 if (!string.IsNullOrEmpty(relatedTopics[i].FirstURL))
                 {
                     CreateRelatedTopicsUrlVocabularyKeyIfNecessary(context, vocabRepository, i, vocabId);
                     metadata.Properties[DuckDuckGoVocabulary.RelatedTopics.KeyPrefix + DuckDuckGoVocabulary.RelatedTopics.KeySeparator + $"{i}.firstUrl"] = relatedTopics[i].FirstURL.PrintIfAvailable();
+                }
+
+                if (!string.IsNullOrEmpty(relatedTopics[i].Text))
+                {
+                    CreateRelatedTopicsTextVocabularyKeyIfNecessary(context, vocabRepository, i, vocabId);
+                    metadata.Properties[DuckDuckGoVocabulary.RelatedTopics.KeyPrefix + DuckDuckGoVocabulary.RelatedTopics.KeySeparator + $"{i}.text"] = relatedTopics[i].Text.PrintIfAvailable();
                 }
 
                 if (relatedTopics[i].Icon != null)
@@ -360,7 +360,7 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
 
             if (cachedUrl != null) return;
 
-            using (LockHelper.GetDistributedLockAsync(context.ApplicationContext, "DuckDuckGo_CreateVocab_Lock", TimeSpan.FromMinutes(1)))
+            using (LockHelper.GetDistributedLockAsync(context.ApplicationContext, "DuckDuckGo_CreateVocab_Lock", TimeSpan.FromMinutes(1)).GetAwaiter().GetResult())
             {
                 var getVocabKeyMethodInfo = vocabRepository.GetType().GetMethod("GetVocabularyKeyByFullName");
                 var addVocabKeyMethodInfo = vocabRepository.GetType().GetMethod("AddVocabularyKey");
@@ -392,7 +392,7 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
 
             if (cachedText != null) return;
 
-            using (LockHelper.GetDistributedLockAsync(context.ApplicationContext, "DuckDuckGo_CreateVocab_Lock", TimeSpan.FromMinutes(1)))
+            using (LockHelper.GetDistributedLockAsync(context.ApplicationContext, "DuckDuckGo_CreateVocab_Lock", TimeSpan.FromMinutes(1)).GetAwaiter().GetResult())
             {
                 var getVocabKeyMethodInfo = vocabRepository.GetType().GetMethod("GetVocabularyKeyByFullName");
                 var addVocabKeyMethodInfo = vocabRepository.GetType().GetMethod("AddVocabularyKey");
@@ -424,7 +424,7 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
 
             if (cachedIcon != null) return;
 
-            using (LockHelper.GetDistributedLockAsync(context.ApplicationContext, "DuckDuckGo_CreateVocab_Lock", TimeSpan.FromMinutes(1)))
+            using (LockHelper.GetDistributedLockAsync(context.ApplicationContext, "DuckDuckGo_CreateVocab_Lock", TimeSpan.FromMinutes(1)).GetAwaiter().GetResult())
             {
                 var getVocabKeyMethodInfo = vocabRepository.GetType().GetMethod("GetVocabularyKeyByFullName");
                 var addVocabKeyMethodInfo = vocabRepository.GetType().GetMethod("AddVocabularyKey");
@@ -455,7 +455,7 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
             object cached = context.ApplicationContext.System.Cache.GetItem<object>(cacheKey);
             if (cached != null) return;
 
-            using (LockHelper.GetDistributedLockAsync(context.ApplicationContext, "DuckDuckGo_CreateVocab_Lock", TimeSpan.FromMinutes(1)))
+            using (LockHelper.GetDistributedLockAsync(context.ApplicationContext, "DuckDuckGo_CreateVocab_Lock", TimeSpan.FromMinutes(1)).GetAwaiter().GetResult())
             {
                 var getVocabKeyMethodInfo = vocabRepository.GetType().GetMethod("GetVocabularyKeyByFullName");
                 var addVocabKeyMethodInfo = vocabRepository.GetType().GetMethod("AddVocabularyKey");
@@ -487,7 +487,7 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
 
             if (cached != null) return (Guid)cached;
 
-            using (LockHelper.GetDistributedLockAsync(context.ApplicationContext, "DuckDuckGo_CreateVocab_Lock", TimeSpan.FromMinutes(1)))
+            using (LockHelper.GetDistributedLockAsync(context.ApplicationContext, "DuckDuckGo_CreateVocab_Lock", TimeSpan.FromMinutes(1)).GetAwaiter().GetResult())
             {
                 var getVocabMethodInfo = vocabRepository.GetType().GetMethod("GetVocabularyByKeyPrefix");
                 var addVocabMethodInfo = vocabRepository.GetType().GetMethod("AddVocabulary");
