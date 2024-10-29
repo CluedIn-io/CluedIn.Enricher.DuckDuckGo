@@ -32,6 +32,12 @@ using System.Web;
 using CluedIn.Core.Data.Vocabularies.Models;
 using CluedIn.Core.Data.Vocabularies;
 using CluedIn.Core.Streams.Models;
+using Castle.MicroKernel.SubSystems.Conversion;
+using CluedIn.ExternalSearch.Providers.DuckDuckgo.Helper;
+using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
+using System.Data;
+using System.IO;
 
 namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
 {
@@ -44,7 +50,9 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
          **********************************************************************************************************/
 
         private static readonly EntityType[] DefaultAcceptedEntityTypes = { EntityType.Organization };
-
+        private const int ExportEntitiesLockInMilliseconds = 15000;
+        private const string StreamIdKey = "StreamId";
+        private const string DataTimeKey = "DataTime";
         /**********************************************************************************************************
          * CONSTRUCTORS
          **********************************************************************************************************/
@@ -285,43 +293,186 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
             // Results
             metadata.Properties[DuckDuckGoVocabulary.Organization.Websites]         = JoinValues(resultItem.Data.Results, x => x?.FirstURL);
 
+
+            var vocabRepository = GetVocabularyRepository(context);
+            var vocabId = GetOrCreateDuckDuckGoVocabularyId(context, vocabRepository);
+
+            CallTryAcquireTableCreationLock(context);
+
             // Related Topics
-            var relatedTopics = resultItem.Data.RelatedTopics;
-            for (int i = 0; i < relatedTopics.Count; i++)
-            {
-                metadata.Properties[DuckDuckGoVocabulary.RelatedTopics.KeyPrefix + DuckDuckGoVocabulary.RelatedTopics.KeySeparator + $"{i}.text"]     = relatedTopics[i].Text.PrintIfAvailable();
-                metadata.Properties[DuckDuckGoVocabulary.RelatedTopics.KeyPrefix + DuckDuckGoVocabulary.RelatedTopics.KeySeparator + $"{i}.firstUrl"] = relatedTopics[i].FirstURL.PrintIfAvailable();
-                metadata.Properties[DuckDuckGoVocabulary.RelatedTopics.KeyPrefix + DuckDuckGoVocabulary.RelatedTopics.KeySeparator + $"{i}.icon"]     = relatedTopics[i].Icon.URL.PrintIfAvailable();
-            }
+            ProcessRelatedTopicsVocabulary(metadata, resultItem, context, vocabRepository, vocabId);
 
             // Infobox
-            ProcessInfoboxVocabulary(metadata, resultItem, context);
+            ProcessInfoboxVocabulary(metadata, resultItem, context, vocabRepository, vocabId);
 
             metadata.Codes.Add(code);
         }
 
-        private void ProcessInfoboxVocabulary(IEntityMetadata metadata, IExternalSearchQueryResult<SearchResult> resultItem, ExecutionContext context)
+        private async void CallTryAcquireTableCreationLock(ExecutionContext context)
+        {
+            var typeName = this.GetType().Name;
+            var resourceId = Guid.NewGuid();
+            string connectionString = null;
+            if (context.ApplicationContext.System.ConnectionStrings.ConnectionStringExists("Locking"))
+            {
+                connectionString = context.ApplicationContext.System.ConnectionStrings.GetConnectionString("Locking");
+            }
+
+            await using var connection = new SqlConnection(connectionString);
+            await connection.OpenAsync();
+
+            //if (connection.State != ConnectionState.Open)
+            //{
+            //    // Log or handle the connection issue
+            //    context.Log.LogError("Connection to the database failed.");
+            //    return; // Exit if the connection is not open
+            //}
+
+            // ================= Connection is open but got result -999 from TryAcquireTableCreationLock()
+
+            //if (! await DistributedLockHelper.TryAcquireTableCreationLock(connection, $"{typeName}_VocabularyKeyDefinition_{resourceId}", ExportEntitiesLockInMilliseconds))
+            //{
+            //    context.Log.LogInformation("Unable to acquire lock for populating vocabulary keys.");
+            //}
+        }
+
+        private object GetVocabularyRepository(ExecutionContext context)
         {
             var vocabularyRepositoryType = typeof(Integration.PrivateServices.PrivateServicesComponent).Assembly.GetType("CluedIn.Integration.PrivateServices.Vocabularies.IPrivateVocabularyRepository");
             var vocabRepository = context.ApplicationContext.Container.Resolve(vocabularyRepositoryType);
 
-            var vocabId = GetOrCreateDuckDuckGoVocabularyId(context, vocabRepository);
+            return vocabRepository;
+        }
 
+        private void ProcessRelatedTopicsVocabulary(IEntityMetadata metadata, IExternalSearchQueryResult<SearchResult> resultItem, ExecutionContext context, object vocabRepository, Guid vocabId)
+        {
+            var relatedTopics = resultItem.Data.RelatedTopics;
+            for (int i = 0; i < relatedTopics.Count; i++)
+            {
+                if (!string.IsNullOrEmpty(relatedTopics[i].Text))
+                {
+                    CreateRelatedTopicsTextVocabularyKeyIfNecessary(context, vocabRepository, i, vocabId);
+                    metadata.Properties[DuckDuckGoVocabulary.RelatedTopics.KeyPrefix + DuckDuckGoVocabulary.RelatedTopics.KeySeparator + $"{i}.text"] = relatedTopics[i].Text.PrintIfAvailable();
+                }
+
+                if (!string.IsNullOrEmpty(relatedTopics[i].FirstURL))
+                {
+                    CreateRelatedTopicsUrlVocabularyKeyIfNecessary(context, vocabRepository, i, vocabId);
+                    metadata.Properties[DuckDuckGoVocabulary.RelatedTopics.KeyPrefix + DuckDuckGoVocabulary.RelatedTopics.KeySeparator + $"{i}.firstUrl"] = relatedTopics[i].FirstURL.PrintIfAvailable();
+                }
+
+                if (relatedTopics[i].Icon != null)
+                {
+                    CreateRelatedTopicsIconVocabularyKeyIfNecessary(context, vocabRepository, i, vocabId);
+                    metadata.Properties[DuckDuckGoVocabulary.RelatedTopics.KeyPrefix + DuckDuckGoVocabulary.RelatedTopics.KeySeparator + $"{i}.icon"] = relatedTopics[i].Icon.URL.PrintIfAvailable();
+                }
+            }
+
+        }
+        private void ProcessInfoboxVocabulary(IEntityMetadata metadata, IExternalSearchQueryResult<SearchResult> resultItem, ExecutionContext context, object vocabRepository, Guid vocabId)
+        {
             foreach (var content in resultItem.Data.Infobox.Content)
             {
                 var label = FormatLabelToProperty(content.Label);
 
                 if (label == null) continue;
 
-                CreateVocabularyKeyIfNecessary(context, vocabRepository, label, vocabId);
+                CreateInfoboxVocabularyKeyIfNecessary(context, vocabRepository, label, vocabId);
 
                 metadata.Properties[DuckDuckGoVocabulary.Infobox.KeyPrefix + DuckDuckGoVocabulary.Infobox.KeySeparator + label] = content.Value.PrintIfAvailable();
             }
         }
 
-        private static void CreateVocabularyKeyIfNecessary(ExecutionContext context, object vocabRepository, string label, Guid vocabId)
+        private static void CreateRelatedTopicsUrlVocabularyKeyIfNecessary(ExecutionContext context, object vocabRepository, int count, Guid vocabId)
         {
-            var cacheKey = "DuckDuckGo_CreateVocabularyKeyIfNecessary_" + label;
+            var cacheUrlKey = $"DuckDuckGo_CreateRelatedTopicsVocabularyKeyIfNecessary_relatedTopics_{count}_firstUrl";
+            object cachedUrl = context.ApplicationContext.System.Cache.GetItem<object>(cacheUrlKey);
+
+            if (cachedUrl != null) return;
+
+            var getVocabKeyMethodInfo = vocabRepository.GetType().GetMethod("GetVocabularyKeyByFullName");
+            var addVocabKeyMethodInfo = vocabRepository.GetType().GetMethod("AddVocabularyKey");
+
+            var existingUrlVocabKey = (VocabularyKey)getVocabKeyMethodInfo.Invoke(vocabRepository, new object[] { $"relatedTopics.{count}" + DuckDuckGoVocabulary.RelatedTopics.KeySeparator + "firstUrl" });
+            if (existingUrlVocabKey == null)
+            {
+                var newUrlVocabKey = new AddVocabularyKeyModel
+                {
+                    VocabularyId = vocabId,
+                    DisplayName = $"Related Topics {count} Url",
+                    GroupName = "DuckDuckGo Organization Related Topics",
+                    Name = $"relatedTopics.{count}" + DuckDuckGoVocabulary.RelatedTopics.KeySeparator + "firstUrl",
+                    DataType = VocabularyKeyDataType.Text,
+                    IsVisible = true,
+                    Storage = VocabularyKeyStorage.Keyword
+                };
+                addVocabKeyMethodInfo.Invoke(vocabRepository, new object[] { newUrlVocabKey, context, Guid.Empty.ToString(), true });
+            }
+
+            context.ApplicationContext.System.Cache.SetItem(cacheUrlKey, new object(), DateTimeOffset.Now.AddMinutes(1));
+        }
+
+        private static void CreateRelatedTopicsTextVocabularyKeyIfNecessary(ExecutionContext context, object vocabRepository, int count, Guid vocabId)
+        {
+            var cacheTextKey = $"DuckDuckGo_CreateRelatedTopicsVocabularyKeyIfNecessary_relatedTopics_{count}_text";
+            object cachedText = context.ApplicationContext.System.Cache.GetItem<object>(cacheTextKey);
+
+            if (cachedText != null) return;
+
+            var getVocabKeyMethodInfo = vocabRepository.GetType().GetMethod("GetVocabularyKeyByFullName");
+            var addVocabKeyMethodInfo = vocabRepository.GetType().GetMethod("AddVocabularyKey");
+
+            var existingTextVocabKey = (VocabularyKey)getVocabKeyMethodInfo.Invoke(vocabRepository, new object[] { $"relatedTopics.{count}" + DuckDuckGoVocabulary.RelatedTopics.KeySeparator + "text" });
+            if (existingTextVocabKey == null)
+            {
+                var newTextVocabKey = new AddVocabularyKeyModel
+                {
+                    VocabularyId = vocabId,
+                    DisplayName = $"Related Topics {count} Text",
+                    GroupName = "DuckDuckGo Organization Related Topics",
+                    Name = $"relatedTopics.{count}" + DuckDuckGoVocabulary.RelatedTopics.KeySeparator + "text",
+                    DataType = VocabularyKeyDataType.Text,
+                    IsVisible = true,
+                    Storage = VocabularyKeyStorage.Keyword
+                };
+                addVocabKeyMethodInfo.Invoke(vocabRepository, new object[] { newTextVocabKey, context, Guid.Empty.ToString(), true });
+            }
+
+            context.ApplicationContext.System.Cache.SetItem(cacheTextKey, new object(), DateTimeOffset.Now.AddMinutes(1));
+        }
+
+        private static void CreateRelatedTopicsIconVocabularyKeyIfNecessary(ExecutionContext context, object vocabRepository, int count, Guid vocabId)
+        {
+            var cacheIconKey = $"DuckDuckGo_CreateRelatedTopicsVocabularyKeyIfNecessary_relatedTopics_{count}_icon";
+            object cachedIcon = context.ApplicationContext.System.Cache.GetItem<object>(cacheIconKey);
+
+            if (cachedIcon != null) return;
+
+            var getVocabKeyMethodInfo = vocabRepository.GetType().GetMethod("GetVocabularyKeyByFullName");
+            var addVocabKeyMethodInfo = vocabRepository.GetType().GetMethod("AddVocabularyKey");
+
+            var existingIconVocabKey = (VocabularyKey)getVocabKeyMethodInfo.Invoke(vocabRepository, new object[] { $"relatedTopics.{count}" + DuckDuckGoVocabulary.RelatedTopics.KeySeparator + "icon" });
+            if (existingIconVocabKey == null)
+            {
+                var newIconVocabKey = new AddVocabularyKeyModel
+                {
+                    VocabularyId = vocabId,
+                    DisplayName = $"Related Topics {count} Icon",
+                    GroupName = "DuckDuckGo Organization Related Topics",
+                    Name = $"relatedTopics.{count}" + DuckDuckGoVocabulary.RelatedTopics.KeySeparator + "icon",
+                    DataType = VocabularyKeyDataType.Text,
+                    IsVisible = true,
+                    Storage = VocabularyKeyStorage.Keyword
+                };
+                addVocabKeyMethodInfo.Invoke(vocabRepository, new object[] { newIconVocabKey, context, Guid.Empty.ToString(), true });
+            }
+
+            context.ApplicationContext.System.Cache.SetItem(cacheIconKey, new object(), DateTimeOffset.Now.AddMinutes(1));
+        }
+
+        private static void CreateInfoboxVocabularyKeyIfNecessary(ExecutionContext context, object vocabRepository, string label, Guid vocabId)
+        {
+            var cacheKey = "DuckDuckGo_CreateInfoboxVocabularyKeyIfNecessary_" + label;
             object cached = context.ApplicationContext.System.Cache.GetItem<object>(cacheKey);
             if (cached != null) return;
 
@@ -334,7 +485,7 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
                 var newVocabKey = new AddVocabularyKeyModel
                 {
                     VocabularyId = vocabId,
-                    DisplayName = "infobox-" + label,
+                    DisplayName = "Infobox-" + label,
                     GroupName = "DuckDuckGo Organization Infobox",
                     Name = "infobox" + DuckDuckGoVocabulary.Infobox.KeySeparator + label,
                     DataType = VocabularyKeyDataType.Text,
