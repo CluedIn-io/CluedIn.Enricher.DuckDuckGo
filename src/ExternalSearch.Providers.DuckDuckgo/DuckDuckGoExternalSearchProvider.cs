@@ -31,13 +31,8 @@ using Microsoft.Extensions.Logging;
 using System.Web;
 using CluedIn.Core.Data.Vocabularies.Models;
 using CluedIn.Core.Data.Vocabularies;
-using CluedIn.Core.Streams.Models;
-using Castle.MicroKernel.SubSystems.Conversion;
 using CluedIn.ExternalSearch.Providers.DuckDuckgo.Helper;
-using Microsoft.Data.SqlClient;
-using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using System.Data;
-using System.IO;
 
 namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
 {
