@@ -5,6 +5,7 @@ using CluedIn.Core.Server;
 using CluedIn.Core.Providers;
 using CluedIn.ExternalSearch.Providers.DuckDuckgo;
 using ComponentHost;
+using CluedIn.ExternalSearch.Providers.DuckDuckgo.Services;
 
 namespace CluedIn.ExternalSearch.Providers.DuckDuckGo.Provider
 {
@@ -25,6 +26,8 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo.Provider
             // Dev. Note: Potential for compiler warning here ... CA2214: Do not call overridable methods in constructors
             //   this class has been sealed to prevent the CA2214 waring being raised by the compiler
             Container.Register(Component.For<DuckDuckGoProviderProviderComponent>().Instance(this));
+            
+            Container.Register(Component.For<IVocabularyRepository>().ImplementedBy<VocabularyRepository>().LifestyleSingleton());
         }
 
         /**********************************************************************************************************
