@@ -377,7 +377,7 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
                 VocabularyKey existingVocabKey;
                 if (keyType == ResultType.RelatedTopics)
                 {
-                    existingVocabKey = vocabRepository.GetVocabularyKeyByFullName(context, $"relatedTopics.{count}" + DuckDuckGoVocabulary.RelatedTopics.KeySeparator + relatedTopicsType);
+                    existingVocabKey = vocabRepository.GetVocabularyKeyByFullName(context, DuckDuckGoVocabulary.RelatedTopics.KeyPrefix + DuckDuckGoVocabulary.RelatedTopics.KeySeparator + count + DuckDuckGoVocabulary.RelatedTopics.KeySeparator + relatedTopicsType);
                     if (existingVocabKey == null)
                     {
                         string displayNamePostFix = relatedTopicsType switch
@@ -398,12 +398,14 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
                             IsVisible = true,
                             Storage = VocabularyKeyStorage.Keyword
                         };
-                        vocabRepository.AddVocabularyKey(newVocabKey, context, Guid.Empty.ToString(), true).GetAwaiter().GetResult();
+                        var vocabKeyId = vocabRepository.AddVocabularyKey(newVocabKey, context, Guid.Empty.ToString(), true).GetAwaiter().GetResult();
+                        vocabRepository.ActivateVocabularyKey(context, vocabKeyId).GetAwaiter().GetResult();
+
                     }
                 }
                 else if (keyType == ResultType.Infobox)
                 {
-                    existingVocabKey = vocabRepository.GetVocabularyKeyByFullName(context, label);
+                    existingVocabKey = vocabRepository.GetVocabularyKeyByFullName(context, DuckDuckGoVocabulary.Infobox.KeyPrefix + DuckDuckGoVocabulary.Infobox.KeySeparator + label);
                     if (existingVocabKey == null)
                     {
                         var newVocabKey = new AddVocabularyKeyModel
@@ -416,10 +418,10 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
                             IsVisible = true,
                             Storage = VocabularyKeyStorage.Keyword
                         };
-                        vocabRepository.AddVocabularyKey(newVocabKey, context, Guid.Empty.ToString(), true).GetAwaiter().GetResult();
+                        var vocabKeyId = vocabRepository.AddVocabularyKey(newVocabKey, context, Guid.Empty.ToString(), true).GetAwaiter().GetResult();
+                        vocabRepository.ActivateVocabularyKey(context, vocabKeyId).GetAwaiter().GetResult();
                     }
                 }
-
                 context.ApplicationContext.System.Cache.SetItem(cacheKey, new object(), DateTimeOffset.Now.AddMinutes(1));
             }
         }
@@ -442,6 +444,7 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
                 {
                     var newVocab = new AddVocabularyModel { VocabularyName = "DuckDuckGo Organization", KeyPrefix = "duckDuckGo.organization", Grouping = EntityType.Organization };
                     vocabId = vocabularyRepository.AddVocabulary(context, newVocab, Guid.Empty.ToString(), context.Organization.Id).GetAwaiter().GetResult();
+                    vocabularyRepository.ActivateVocabulary(context, vocabId).GetAwaiter().GetResult();
                 }
                 else
                 {
