@@ -208,13 +208,14 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
             if (string.IsNullOrEmpty(resultItem.Data.Heading))
                 yield break;
 
-            var code = new EntityCode(Core.Data.EntityType.Organization, CodeOrigin.CluedIn.CreateSpecific("duckDuckGo"), request.EntityMetaData.OriginEntityCode.Value);
+            var jobData = new DuckDuckGoExternalSearchJobData(config);
+            var code = jobData.CreateEntityCodeKey != null && jobData.CreateEntityCodeKey.Value ? new EntityCode(Core.Data.EntityType.Organization, CodeOrigin.CluedIn.CreateSpecific("duckDuckGo"), request.EntityMetaData.OriginEntityCode.Value) : request.EntityMetaData.OriginEntityCode;
 
             var clue = new Clue(code, context.Organization);
 
             clue.Data.OriginProviderDefinitionId = this.Id;
 
-            this.PopulateMetadata(clue.Data.EntityData, resultItem, request, context);
+            this.PopulateMetadata(clue.Data.EntityData, resultItem, request, context, config);
 
             if (resultItem.Data.ImageIsLogo == 1 && resultItem.Data.Image != null)
                 this.DownloadPreviewImage(context, resultItem.Data.Image, clue);
@@ -230,7 +231,7 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
             if (resultItem.Data.Entity != "company")
                 return null;
 
-            return this.CreateMetadata(resultItem, request, context);
+            return this.CreateMetadata(resultItem, request, context, config);
         }
 
         public override IPreviewImage GetPrimaryEntityPreviewImage(ExecutionContext context, IExternalSearchQueryResult result, IExternalSearchRequest request)
@@ -255,23 +256,24 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
             return null;
         }
 
-        private IEntityMetadata CreateMetadata(IExternalSearchQueryResult<SearchResult> resultItem, IExternalSearchRequest request, ExecutionContext context)
+        private IEntityMetadata CreateMetadata(IExternalSearchQueryResult<SearchResult> resultItem, IExternalSearchRequest request, ExecutionContext context, IDictionary<string, object> config)
         {
             var metadata = new EntityMetadataPart();
 
-            this.PopulateMetadata(metadata, resultItem, request, context);
+            this.PopulateMetadata(metadata, resultItem, request, context, config);
 
             return metadata;
         }
 
-        private void PopulateMetadata(IEntityMetadata metadata, IExternalSearchQueryResult<SearchResult> resultItem, IExternalSearchRequest request, ExecutionContext context)
+        private void PopulateMetadata(IEntityMetadata metadata, IExternalSearchQueryResult<SearchResult> resultItem, IExternalSearchRequest request, ExecutionContext context, IDictionary<string, object> config)
         {
-            var code = new EntityCode(request.EntityMetaData.EntityType, CodeOrigin.CluedIn.CreateSpecific("duckDuckGo"), request.EntityMetaData.OriginEntityCode.Value);
+            var jobData = new DuckDuckGoExternalSearchJobData(config);
+            var code = jobData.CreateEntityCodeKey != null && jobData.CreateEntityCodeKey.Value ? new EntityCode(request.EntityMetaData.EntityType, CodeOrigin.CluedIn.CreateSpecific("duckDuckGo"), request.EntityMetaData.OriginEntityCode.Value) : request.EntityMetaData.OriginEntityCode;
 
             metadata.EntityType       = request.EntityMetaData.EntityType;
             metadata.Name             = request.EntityMetaData.Name;
             metadata.Description      = resultItem.Data.Abstract;
-            metadata.OriginEntityCode = code;
+            metadata.OriginEntityCode = jobData.CreateEntityCodeKey != null && jobData.CreateEntityCodeKey.Value ? code : request.EntityMetaData.OriginEntityCode;
             metadata.Codes.Add(request.EntityMetaData.OriginEntityCode);
 
             var uri = resultItem.Data.Results.FirstOrDefault()?.FirstURL;
