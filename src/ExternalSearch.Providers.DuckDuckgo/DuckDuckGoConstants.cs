@@ -17,7 +17,7 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckgo
             public const string AcceptedEntityType = "acceptedEntityType";
             public const string OrgNameKey = "orgNameKey";
             public const string WebsiteKey = "websiteKey";
-            public const string CreateEntityCode = "addEntityCode";
+            public const string CreateEntityCode = "createEntityCode";
         }
 
         public static string About { get; set; } = "Duck Duck Go is a search engine";
