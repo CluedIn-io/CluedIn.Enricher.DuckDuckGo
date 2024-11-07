@@ -12,7 +12,6 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckgo
             AcceptedEntityType = GetValue<string>(configuration, DuckDuckGoConstants.KeyName.AcceptedEntityType);
             OrgNameKey = GetValue<string>(configuration, DuckDuckGoConstants.KeyName.OrgNameKey);
             WebsiteKey = GetValue<string>(configuration, DuckDuckGoConstants.KeyName.WebsiteKey);
-            SkipEntityCodeCreationKey = GetValue<bool>(configuration, DuckDuckGoConstants.KeyName.SkipEntityCodeCreation);
         }
 
         public IDictionary<string, object> ToDictionary()
@@ -20,13 +19,11 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckgo
             return new Dictionary<string, object> {
                 { DuckDuckGoConstants.KeyName.AcceptedEntityType, AcceptedEntityType },
                 { DuckDuckGoConstants.KeyName.OrgNameKey, OrgNameKey },
-                { DuckDuckGoConstants.KeyName.WebsiteKey, WebsiteKey },
-                { DuckDuckGoConstants.KeyName.SkipEntityCodeCreation, SkipEntityCodeCreationKey },
+                { DuckDuckGoConstants.KeyName.WebsiteKey, WebsiteKey }
             };
         }
         public string AcceptedEntityType { get; set; }
         public string OrgNameKey { get; set; }
         public string WebsiteKey { get; set; }
-        public bool SkipEntityCodeCreationKey { get; set; }
     }
 }

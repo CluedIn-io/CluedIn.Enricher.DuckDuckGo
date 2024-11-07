@@ -48,13 +48,6 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckgo
                     type = "input",
                     isRequired = false,
                     name = KeyName.WebsiteKey
-                },
-                new Control()
-                {
-                    displayName = "Skip Entity Code creation?",
-                    type = "checkbox",
-                    isRequired = false,
-                    name = KeyName.SkipEntityCodeCreation,
                 }
             }
         };
