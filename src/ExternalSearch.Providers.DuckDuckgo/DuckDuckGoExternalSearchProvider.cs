@@ -269,8 +269,6 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
             metadata.Description      = resultItem.Data.Abstract;
             metadata.OriginEntityCode = request.EntityMetaData.OriginEntityCode;
 
-            metadata.Codes.Add(request.EntityMetaData.OriginEntityCode);
-
             var uri = resultItem.Data.Results.FirstOrDefault()?.FirstURL;
             if (uri != null && UriUtility.IsValid(uri))
                 metadata.Uri = new Uri(uri);
