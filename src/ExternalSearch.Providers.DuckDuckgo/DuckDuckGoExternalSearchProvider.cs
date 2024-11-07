@@ -208,9 +208,7 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
             if (string.IsNullOrEmpty(resultItem.Data.Heading))
                 yield break;
 
-            var code = new EntityCode(Core.Data.EntityType.Organization, CodeOrigin.CluedIn.CreateSpecific("duckDuckGo"), request.EntityMetaData.OriginEntityCode.Value);
-
-            var clue = new Clue(code, context.Organization);
+            var clue = new Clue(request.EntityMetaData.OriginEntityCode, context.Organization);
 
             clue.Data.OriginProviderDefinitionId = this.Id;
 
@@ -266,13 +264,10 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
 
         private void PopulateMetadata(IEntityMetadata metadata, IExternalSearchQueryResult<SearchResult> resultItem, IExternalSearchRequest request, ExecutionContext context)
         {
-            var code = new EntityCode(request.EntityMetaData.EntityType, CodeOrigin.CluedIn.CreateSpecific("duckDuckGo"), request.EntityMetaData.OriginEntityCode.Value);
-
             metadata.EntityType       = request.EntityMetaData.EntityType;
             metadata.Name             = request.EntityMetaData.Name;
             metadata.Description      = resultItem.Data.Abstract;
-            metadata.OriginEntityCode = code;
-            metadata.Codes.Add(request.EntityMetaData.OriginEntityCode);
+            metadata.OriginEntityCode = request.EntityMetaData.OriginEntityCode;
 
             var uri = resultItem.Data.Results.FirstOrDefault()?.FirstURL;
             if (uri != null && UriUtility.IsValid(uri))
@@ -308,8 +303,6 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
 
             // Infobox
             ProcessInfoboxVocabulary(metadata, resultItem, context, vocabId);
-
-            metadata.Codes.Add(code);
         }
 
         private void ProcessRelatedTopicsVocabulary(IEntityMetadata metadata, IExternalSearchQueryResult<SearchResult> resultItem, ExecutionContext context, Guid vocabId)
