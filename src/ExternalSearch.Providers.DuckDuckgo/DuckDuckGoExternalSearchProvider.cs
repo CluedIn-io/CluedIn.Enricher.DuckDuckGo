@@ -209,7 +209,7 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
                 yield break;
 
             var jobData = new DuckDuckGoExternalSearchJobData(config);
-            var code = jobData.CreateEntityCodeKey != null && jobData.CreateEntityCodeKey.Value ? new EntityCode(Core.Data.EntityType.Organization, CodeOrigin.CluedIn.CreateSpecific("duckDuckGo"), request.EntityMetaData.OriginEntityCode.Value) : request.EntityMetaData.OriginEntityCode;
+            var code = jobData.SkipEntityCodeCreationKey ? request.EntityMetaData.OriginEntityCode : new EntityCode(Core.Data.EntityType.Organization, CodeOrigin.CluedIn.CreateSpecific("duckDuckGo"), request.EntityMetaData.OriginEntityCode.Value);
 
             var clue = new Clue(code, context.Organization);
 
@@ -268,13 +268,18 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
         private void PopulateMetadata(IEntityMetadata metadata, IExternalSearchQueryResult<SearchResult> resultItem, IExternalSearchRequest request, ExecutionContext context, IDictionary<string, object> config)
         {
             var jobData = new DuckDuckGoExternalSearchJobData(config);
-            var code = jobData.CreateEntityCodeKey != null && jobData.CreateEntityCodeKey.Value ? new EntityCode(request.EntityMetaData.EntityType, CodeOrigin.CluedIn.CreateSpecific("duckDuckGo"), request.EntityMetaData.OriginEntityCode.Value) : request.EntityMetaData.OriginEntityCode;
+            var code = new EntityCode(request.EntityMetaData.EntityType, CodeOrigin.CluedIn.CreateSpecific("duckDuckGo"), request.EntityMetaData.OriginEntityCode.Value);
 
             metadata.EntityType       = request.EntityMetaData.EntityType;
             metadata.Name             = request.EntityMetaData.Name;
             metadata.Description      = resultItem.Data.Abstract;
-            metadata.OriginEntityCode = jobData.CreateEntityCodeKey != null && jobData.CreateEntityCodeKey.Value ? code : request.EntityMetaData.OriginEntityCode;
-            metadata.Codes.Add(request.EntityMetaData.OriginEntityCode);
+            metadata.OriginEntityCode = jobData.SkipEntityCodeCreationKey ? request.EntityMetaData.OriginEntityCode : code;
+
+            if (!jobData.SkipEntityCodeCreationKey)
+            {
+                metadata.Codes.Add(request.EntityMetaData.OriginEntityCode);
+                metadata.Codes.Add(code);
+            }
 
             var uri = resultItem.Data.Results.FirstOrDefault()?.FirstURL;
             if (uri != null && UriUtility.IsValid(uri))
@@ -310,8 +315,6 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
 
             // Infobox
             ProcessInfoboxVocabulary(metadata, resultItem, context, vocabId);
-
-            metadata.Codes.Add(code);
         }
 
         private void ProcessRelatedTopicsVocabulary(IEntityMetadata metadata, IExternalSearchQueryResult<SearchResult> resultItem, ExecutionContext context, Guid vocabId)

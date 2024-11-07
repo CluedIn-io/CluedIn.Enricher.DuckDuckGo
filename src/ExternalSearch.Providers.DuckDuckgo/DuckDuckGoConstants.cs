@@ -17,7 +17,7 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckgo
             public const string AcceptedEntityType = "acceptedEntityType";
             public const string OrgNameKey = "orgNameKey";
             public const string WebsiteKey = "websiteKey";
-            public const string CreateEntityCode = "createEntityCode";
+            public const string SkipEntityCodeCreation = "SkipEntityCodeCreation";
         }
 
         public static string About { get; set; } = "Duck Duck Go is a search engine";
@@ -51,10 +51,10 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckgo
                 },
                 new Control()
                 {
-                    displayName = "Create Entity Code",
+                    displayName = "Skip Entity Code creation?",
                     type = "checkbox",
                     isRequired = false,
-                    name = KeyName.CreateEntityCode,
+                    name = KeyName.SkipEntityCodeCreation,
                 }
             }
         };
