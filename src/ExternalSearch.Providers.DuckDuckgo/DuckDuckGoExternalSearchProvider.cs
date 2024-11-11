@@ -26,8 +26,12 @@ using CluedIn.ExternalSearch.Providers.DuckDuckGo.Vocabularies;
 using Newtonsoft.Json;
 using RestSharp;
 using EntityType = CluedIn.Core.Data.EntityType;
-using Neo4j.Driver;
 using CluedIn.ExternalSearch.Provider;
+using System.Web;
+using CluedIn.Core.Data.Vocabularies.Models;
+using CluedIn.Core.Data.Vocabularies;
+using CluedIn.ExternalSearch.Providers.DuckDuckgo.Helper;
+using CluedIn.ExternalSearch.Providers.DuckDuckgo.Services;
 
 namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
 {
@@ -40,7 +44,22 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
          **********************************************************************************************************/
 
         private static readonly EntityType[] DefaultAcceptedEntityTypes = { EntityType.Organization };
+        private const int ExportEntitiesLockInMilliseconds = 100;
+        private const string StreamIdKey = "StreamId";
+        private const string DataTimeKey = "DataTime";
 
+        public struct ResultType
+        {
+            public const string RelatedTopics = "RelatedTopics";
+            public const string Infobox = "Infobox";
+        }
+
+        public struct RelatedTopicsType
+        {
+            public const string FirstUrl = "firstUrl";
+            public const string Text = "text";
+            public const string Icon = "icon";
+        }
         /**********************************************************************************************************
          * CONSTRUCTORS
          **********************************************************************************************************/
@@ -75,7 +94,7 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
         {
             var configurableAcceptedEntityTypes = this.Accepts(config).ToArray();
 
-            return configurableAcceptedEntityTypes.Any(entityTypeToEvaluate.Is);
+            return configurableAcceptedEntityTypes.SafeEnumerate().Any(entityTypeToEvaluate.Is);
         }
 
         public IEnumerable<IExternalSearchQuery> BuildQueries(ExecutionContext context, IExternalSearchRequest request, IDictionary<string, object> config, IProvider provider)
@@ -88,8 +107,8 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
 
             var existingResults = request.GetQueryResults<SearchResult>(this).Where(r => r.Data.Infobox != null).ToList();
 
-            Func<string, bool> existingResultsFilter    = value => existingResults.Any(r => string.Equals(r.Data.Infobox.Meta.First().Value, value, StringComparison.InvariantCultureIgnoreCase));
-            Func<string, bool> existingResultsFilter2   = value => existingResults.Any(r => r.Data.Results.Any(v => v.FirstURL.Contains(value)));
+            Func<string, bool> existingResultsFilter    = value => existingResults.SafeEnumerate().Any(r => string.Equals(r.Data.Infobox.Meta.First().Value, value, StringComparison.InvariantCultureIgnoreCase));
+            Func<string, bool> existingResultsFilter2   = value => existingResults.SafeEnumerate().Any(r => r.Data.Results.SafeEnumerate().Any(v => v.FirstURL.Contains(value)));
             Func<string, bool> nameFilter               = value => OrganizationFilters.NameFilter(context, value);
 
             // Query Input
@@ -150,19 +169,33 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
 
         public IEnumerable<IExternalSearchQueryResult> ExecuteSearch(ExecutionContext context, IExternalSearchQuery query, IDictionary<string, object> config, IProvider provider)
         {
-            var id = query.QueryParameters[ExternalSearchQueryParameter.Name].FirstOrDefault();
+            var name = query.QueryParameters[ExternalSearchQueryParameter.Name].FirstOrDefault();
 
-            if (string.IsNullOrEmpty(id))
+            if (string.IsNullOrWhiteSpace(name))
                 yield break;
 
-            var client = new RestClient("https://api.duckduckgo.com");
+            var client = new RestClient("https://api.duckduckgo.com")
+            {
+                // TODO rotating the useragent can help with throttling
+                UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0"
+            };
 
-            var responseData = JsonRequestWrapper<SearchResult>(client, string.Format("?q={0}&format=json", id), Method.GET);
+            foreach (var searchName in GetSearchVariants(name.Trim()))
+            {
+                var responseData = JsonRequestWrapper(client, searchName, Method.GET);
 
-            if (responseData?.Infobox != null)
+                if (responseData?.Infobox == null) continue;
+
                 yield return new ExternalSearchQueryResult<SearchResult>(query, responseData);
-            else
-                yield break;
+                break;
+            }
+        }
+
+        private IEnumerable<string> GetSearchVariants(string name)
+        {
+            yield return name;
+            yield return $"{name} company";
+            yield return $"{name} corporation";
         }
 
         public IEnumerable<Clue> BuildClues(ExecutionContext context, IExternalSearchQuery query, IExternalSearchQueryResult result, IExternalSearchRequest request, IDictionary<string, object> config, IProvider provider)
@@ -175,13 +208,11 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
             if (string.IsNullOrEmpty(resultItem.Data.Heading))
                 yield break;
 
-            var code = new EntityCode(Core.Data.EntityType.Organization, CodeOrigin.CluedIn.CreateSpecific("duckDuckGo"), request.EntityMetaData.OriginEntityCode.Value);
-
-            var clue = new Clue(code, context.Organization);
+            var clue = new Clue(request.EntityMetaData.OriginEntityCode, context.Organization);
 
             clue.Data.OriginProviderDefinitionId = this.Id;
 
-            this.PopulateMetadata(clue.Data.EntityData, resultItem, request);
+            this.PopulateMetadata(clue.Data.EntityData, resultItem, request, context);
 
             if (resultItem.Data.ImageIsLogo == 1 && resultItem.Data.Image != null)
                 this.DownloadPreviewImage(context, resultItem.Data.Image, clue);
@@ -197,7 +228,7 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
             if (resultItem.Data.Entity != "company")
                 return null;
 
-            return this.CreateMetadata(resultItem, request);
+            return this.CreateMetadata(resultItem, request, context);
         }
 
         public override IPreviewImage GetPrimaryEntityPreviewImage(ExecutionContext context, IExternalSearchQueryResult result, IExternalSearchRequest request)
@@ -222,24 +253,21 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
             return null;
         }
 
-        private IEntityMetadata CreateMetadata(IExternalSearchQueryResult<SearchResult> resultItem, IExternalSearchRequest request)
+        private IEntityMetadata CreateMetadata(IExternalSearchQueryResult<SearchResult> resultItem, IExternalSearchRequest request, ExecutionContext context)
         {
             var metadata = new EntityMetadataPart();
 
-            this.PopulateMetadata(metadata, resultItem, request);
+            this.PopulateMetadata(metadata, resultItem, request, context);
 
             return metadata;
         }
 
-        private void PopulateMetadata(IEntityMetadata metadata, IExternalSearchQueryResult<SearchResult> resultItem, IExternalSearchRequest request)
+        private void PopulateMetadata(IEntityMetadata metadata, IExternalSearchQueryResult<SearchResult> resultItem, IExternalSearchRequest request, ExecutionContext context)
         {
-            var code = new EntityCode(request.EntityMetaData.EntityType, CodeOrigin.CluedIn.CreateSpecific("duckDuckGo"), request.EntityMetaData.OriginEntityCode.Value);
-
             metadata.EntityType       = request.EntityMetaData.EntityType;
             metadata.Name             = request.EntityMetaData.Name;
             metadata.Description      = resultItem.Data.Abstract;
-            metadata.OriginEntityCode = code;
-            metadata.Codes.Add(request.EntityMetaData.OriginEntityCode);
+            metadata.OriginEntityCode = request.EntityMetaData.OriginEntityCode;
 
             var uri = resultItem.Data.Results.FirstOrDefault()?.FirstURL;
             if (uri != null && UriUtility.IsValid(uri))
@@ -267,85 +295,197 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
             // Results
             metadata.Properties[DuckDuckGoVocabulary.Organization.Websites]         = JoinValues(resultItem.Data.Results, x => x?.FirstURL);
 
+
+            var vocabId = GetOrCreateDuckDuckGoVocabularyId(context);
+
             // Related Topics
-            var relatedTopics = resultItem.Data.RelatedTopics;
-            for (int i = 0; i < relatedTopics.Count(); i++)
-            {
-                metadata.Properties[DuckDuckGoVocabulary.RelatedTopics.KeyPrefix + DuckDuckGoVocabulary.RelatedTopics.KeySeparator + $"{i}.text"]     = relatedTopics[i].Text.PrintIfAvailable();
-                metadata.Properties[DuckDuckGoVocabulary.RelatedTopics.KeyPrefix + DuckDuckGoVocabulary.RelatedTopics.KeySeparator + $"{i}.firstUrl"] = relatedTopics[i].FirstURL.PrintIfAvailable();
-                metadata.Properties[DuckDuckGoVocabulary.RelatedTopics.KeyPrefix + DuckDuckGoVocabulary.RelatedTopics.KeySeparator + $"{i}.icon"]     = relatedTopics[i].Icon.URL.PrintIfAvailable();
-            }
+            ProcessRelatedTopicsVocabulary(metadata, resultItem, context, vocabId);
 
             // Infobox
-            foreach (var content in resultItem.Data.Infobox.Content)
-            {
-                string label = FormatLabelToProperty(content.Label);
+            ProcessInfoboxVocabulary(metadata, resultItem, context, vocabId);
+        }
 
-                switch (label)
+        private void ProcessRelatedTopicsVocabulary(IEntityMetadata metadata, IExternalSearchQueryResult<SearchResult> resultItem, ExecutionContext context, Guid vocabId)
+        {
+            var relatedTopics = resultItem.Data.RelatedTopics;
+            for (int i = 0; i < relatedTopics.Count; i++)
+            {
+                if (!string.IsNullOrEmpty(relatedTopics[i].FirstURL))
                 {
-                    case "industry":
-                        metadata.Properties[DuckDuckGoVocabulary.Organization.Industry] = content.Value.PrintIfAvailable();
-                        break;
-                    case "founded":
-                        metadata.Properties[DuckDuckGoVocabulary.Organization.Founded] = content.Value.PrintIfAvailable();
-                        break;
-                    case "revenue":
-                        metadata.Properties[DuckDuckGoVocabulary.Organization.Revenue] = content.Value.PrintIfAvailable();
-                        break;
-                    case "employees":
-                        metadata.Properties[DuckDuckGoVocabulary.Organization.Employees] = content.Value.PrintIfAvailable();
-                        break;
-                    case "gitHubProfile":
-                        metadata.Properties[DuckDuckGoVocabulary.Organization.GitHubProfile] = content.Value.PrintIfAvailable();
-                        break;
-                    case "twitterProfile":
-                        metadata.Properties[DuckDuckGoVocabulary.Organization.TwitterProfile] = content.Value.PrintIfAvailable();
-                        break;
-                    case "facebookProfile":
-                        metadata.Properties[DuckDuckGoVocabulary.Organization.FacebookProfile] = content.Value.PrintIfAvailable();
-                        break;
-                    case "instagramProfile":
-                        metadata.Properties[DuckDuckGoVocabulary.Organization.InstagramProfile] = content.Value.PrintIfAvailable();
-                        break;
-                    case "youtubeChannel":
-                        metadata.Properties[DuckDuckGoVocabulary.Organization.YouTubeChannel] = content.Value.PrintIfAvailable();
-                        break;
-                    default:
-                        metadata.Properties[DuckDuckGoVocabulary.Infobox.KeyPrefix + DuckDuckGoVocabulary.Infobox.KeySeparator + label] = content.Value.PrintIfAvailable();
-                        break;
+                    CreateVocabularyKeyIfNecessary(context, vocabId, ResultType.RelatedTopics, i, null , RelatedTopicsType.FirstUrl);
+                    metadata.Properties[DuckDuckGoVocabulary.RelatedTopics.KeyPrefix + DuckDuckGoVocabulary.RelatedTopics.KeySeparator + $"{i}.firstUrl"] = relatedTopics[i].FirstURL.PrintIfAvailable();
+                }
+
+                if (!string.IsNullOrEmpty(relatedTopics[i].Text))
+                {
+                    CreateVocabularyKeyIfNecessary(context, vocabId, ResultType.RelatedTopics, i, null, RelatedTopicsType.Text);
+                    metadata.Properties[DuckDuckGoVocabulary.RelatedTopics.KeyPrefix + DuckDuckGoVocabulary.RelatedTopics.KeySeparator + $"{i}.text"] = relatedTopics[i].Text.PrintIfAvailable();
+                }
+
+                if (relatedTopics[i].Icon != null)
+                {
+                    CreateVocabularyKeyIfNecessary(context, vocabId, ResultType.RelatedTopics, i, null, RelatedTopicsType.Icon);
+                    metadata.Properties[DuckDuckGoVocabulary.RelatedTopics.KeyPrefix + DuckDuckGoVocabulary.RelatedTopics.KeySeparator + $"{i}.icon"] = relatedTopics[i].Icon.URL.PrintIfAvailable();
                 }
             }
 
-            metadata.Codes.Add(code);
+        }
+        private void ProcessInfoboxVocabulary(IEntityMetadata metadata, IExternalSearchQueryResult<SearchResult> resultItem, ExecutionContext context, Guid vocabId)
+        {
+            foreach (var content in resultItem.Data.Infobox.Content)
+            {
+                var label = FormatLabelToProperty(content.Label);
+
+                if (label == null) continue;
+
+                CreateVocabularyKeyIfNecessary(context, vocabId, ResultType.Infobox, null, label, null);
+
+                metadata.Properties[DuckDuckGoVocabulary.Infobox.KeyPrefix + DuckDuckGoVocabulary.Infobox.KeySeparator + label] = content.Value.PrintIfAvailable();
+            }
+        }
+
+        private static void CreateVocabularyKeyIfNecessary(ExecutionContext context, Guid vocabId, string keyType, int? count = null, string label = null, string relatedTopicsType = null)
+        {
+            string cacheKey;
+            if (keyType == ResultType.RelatedTopics)
+            {
+                cacheKey = $"DuckDuckGo_CreateVocabularyKeyIfNecessary_RelatedTopics_{count}_{relatedTopicsType}";
+            }
+            else if (keyType == ResultType.Infobox)
+            {
+                cacheKey = $"DuckDuckGo_CreateVocabularyKeyIfNecessary_Infobox_{label}";
+            }
+            else
+            {
+                return;
+            }
+
+            object cached = context.ApplicationContext.System.Cache.GetItem<object>(cacheKey);
+            if (cached != null) return;
+
+            using (LockHelper.GetDistributedLockAsync(context.ApplicationContext, "DuckDuckGo_CreateVocab_Lock", TimeSpan.FromMinutes(1)).GetAwaiter().GetResult())
+            {
+                var vocabRepository = context.ApplicationContext.Container.Resolve<IVocabularyRepository>();
+
+                VocabularyKey existingVocabKey;
+                if (keyType == ResultType.RelatedTopics)
+                {
+                    existingVocabKey = vocabRepository.GetVocabularyKeyByFullName(context, DuckDuckGoVocabulary.RelatedTopics.KeyPrefix + DuckDuckGoVocabulary.RelatedTopics.KeySeparator + count + DuckDuckGoVocabulary.RelatedTopics.KeySeparator + relatedTopicsType);
+                    if (existingVocabKey == null)
+                    {
+                        string displayNamePostFix = relatedTopicsType switch
+                        {
+                            RelatedTopicsType.FirstUrl => "Url",
+                            RelatedTopicsType.Text => "Text",
+                            RelatedTopicsType.Icon => "Icon",
+                            _ => ""
+                        };
+
+                        var newVocabKey = new AddVocabularyKeyModel
+                        {
+                            VocabularyId = vocabId,
+                            DisplayName = $"Related Topics {count} {displayNamePostFix}",
+                            GroupName = "DuckDuckGo Organization Related Topics",
+                            Name = $"relatedTopics.{count}" + DuckDuckGoVocabulary.RelatedTopics.KeySeparator + relatedTopicsType,
+                            DataType = VocabularyKeyDataType.Text,
+                            IsVisible = true,
+                            Storage = VocabularyKeyStorage.Keyword
+                        };
+                        var vocabKeyId = vocabRepository.AddVocabularyKey(newVocabKey, context, Guid.Empty.ToString(), true).GetAwaiter().GetResult();
+                        vocabRepository.ActivateVocabularyKey(context, vocabKeyId).GetAwaiter().GetResult();
+
+                    }
+                }
+                else if (keyType == ResultType.Infobox)
+                {
+                    existingVocabKey = vocabRepository.GetVocabularyKeyByFullName(context, DuckDuckGoVocabulary.Infobox.KeyPrefix + DuckDuckGoVocabulary.Infobox.KeySeparator + label);
+                    if (existingVocabKey == null)
+                    {
+                        var newVocabKey = new AddVocabularyKeyModel
+                        {
+                            VocabularyId = vocabId,
+                            DisplayName = "Infobox-" + label,
+                            GroupName = "DuckDuckGo Organization Infobox",
+                            Name = "infobox" + DuckDuckGoVocabulary.Infobox.KeySeparator + label,
+                            DataType = VocabularyKeyDataType.Text,
+                            IsVisible = true,
+                            Storage = VocabularyKeyStorage.Keyword
+                        };
+                        var vocabKeyId = vocabRepository.AddVocabularyKey(newVocabKey, context, Guid.Empty.ToString(), true).GetAwaiter().GetResult();
+                        vocabRepository.ActivateVocabularyKey(context, vocabKeyId).GetAwaiter().GetResult();
+                    }
+                }
+                context.ApplicationContext.System.Cache.SetItem(cacheKey, new object(), DateTimeOffset.Now.AddMinutes(1));
+            }
+        }
+
+        private static Guid GetOrCreateDuckDuckGoVocabularyId(ExecutionContext context)
+        {
+            var cacheKey = "DuckDuckGo-GetExistingVocabulary";
+            var cached = context.ApplicationContext.System.Cache.GetItem<object>(cacheKey);
+
+            if (cached != null) return (Guid)cached;
+
+            using (LockHelper.GetDistributedLockAsync(context.ApplicationContext, "DuckDuckGo_CreateVocab_Lock", TimeSpan.FromMinutes(1)).GetAwaiter().GetResult())
+            {
+                var vocabularyRepository = context.ApplicationContext.Container.Resolve<IVocabularyRepository>();
+
+                var vocab = vocabularyRepository.GetVocabularyByKeyPrefix(context, "duckDuckGo.organization", false );
+
+                Guid vocabId;
+                if (vocab == null)
+                {
+                    var newVocab = new AddVocabularyModel { VocabularyName = "DuckDuckGo Organization", KeyPrefix = "duckDuckGo.organization", Grouping = EntityType.Organization };
+                    vocabId = vocabularyRepository.AddVocabulary(context, newVocab, Guid.Empty.ToString(), context.Organization.Id).GetAwaiter().GetResult();
+                    vocabularyRepository.ActivateVocabulary(context, vocabId).GetAwaiter().GetResult();
+                }
+                else
+                {
+                    vocabId = vocab.VocabularyId;
+                }
+
+                context.ApplicationContext.System.Cache.SetItem(cacheKey, (object)vocabId, DateTimeOffset.Now.AddMinutes(1));
+
+                return vocabId;
+            }
         }
 
         /// <summary>
         /// Wrapper around a request to ensure proper deserialization of the JSON.
         /// </summary>
-        /// <typeparam name="T">The model</typeparam>
-        /// <param name="client">An IRestClient for the request</param>
-        /// <param name="parameter">The parameters for the request</param>
-        /// <param name="callback">Pass additional information to the request (e.g. headers)</param>
-        /// <returns>A deserialized object</returns>
-        private static T JsonRequestWrapper<T>(IRestClient client, string parameter, Method method, Action<IRestRequest> callback = null)
+        private static SearchResult JsonRequestWrapper(IRestClient client, string name, Method method)
         {
-            var request = new RestRequest(parameter, method);
+            var queryParameters = HttpUtility.ParseQueryString("");
+            queryParameters.Add("q", name);
+            queryParameters.Add("format", "json");
+            queryParameters.Add("timestamp", DateTime.Now.Ticks.ToString());    // potentially helps with throttling
 
-            callback?.Invoke(request);
+            var request = new RestRequest($"?{queryParameters}", method);
+            var response = client.Execute(request);
 
-            var response = client.ExecuteTaskAsync(request).Result;
+            if (response.ErrorException != null)
+            {
+                System.Threading.Thread.Sleep(1000);   // sleeping as if there is an error with the remote server we don't want to burn through the queue
+                throw new ApplicationException($"Could not execute external search query - {response.ErrorException}");
+            }
 
-            T responseData;
-            if (response.StatusCode == HttpStatusCode.OK)
-                responseData = JsonConvert.DeserializeObject<T>(response.Content);
-            else if (response.StatusCode == HttpStatusCode.NoContent || response.StatusCode == HttpStatusCode.NotFound)
-                responseData = default(T);
-            else if (response.ErrorException != null)
-                throw new AggregateException(response.ErrorException.Message, response.ErrorException);
-            else
-                throw new ApplicationException("Could not execute external search query - StatusCode:" + response.StatusCode + "; Content: " + response.Content);
+            if (response.StatusCode is HttpStatusCode.NoContent or HttpStatusCode.NotFound)
+                return null;
 
-            return responseData;
+            var content = response.Content;
+
+            if (response.IsSuccessful)
+            {
+                var responseData = JsonConvert.DeserializeObject<SearchResult>(content);
+
+                if (responseData.Infobox != null) return responseData;
+
+                if (response.StatusCode != HttpStatusCode.Accepted) return responseData;
+
+                System.Threading.Thread.Sleep(30000);   // sleep as we are throttled
+            }
+
+            throw new ApplicationException($"Could not execute external search query - StatusCode:{response.StatusCode}; Content: {content}");
         }
 
         /// <summary>
@@ -355,6 +495,9 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
         /// <returns>The formatted label</returns>
         private static string FormatLabelToProperty(string label)
         {
+            if (string.IsNullOrWhiteSpace(label))
+                return null;
+
             return String.Join("", label.Split(' ').Select((x, i) => i == 0 ? x.ToLower() : FirstCharacterToUpper(x)));
         }
 
@@ -377,7 +520,7 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
         /// <returns>A comma separated string containing the properties</returns>
         private static string JoinValues<T>(List<T> items, Func<T, string> property, string separator = ";")
         {
-            if (items != null && items.Any())
+            if (items != null && items.SafeEnumerate().Any())
             {
                 return String.Join(separator, items.Where(x => !String.IsNullOrEmpty(property(x))).ToList().ConvertAll(x => property(x)));
             }
