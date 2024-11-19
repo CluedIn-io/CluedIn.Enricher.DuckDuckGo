@@ -23,15 +23,15 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckgo
         public static string Icon { get; set; } = "Resources.duckduckgo.svg";
         public static string Domain { get; set; } = "N/A";
 
-        public static AuthMethods AuthMethods { get; set; } = new AuthMethods 
-        { 
+        public static AuthMethods AuthMethods { get; set; } = new AuthMethods
+        {
             Token = new List<Control>()
             {
                 new Control()
                 {
                     DisplayName = "Accepted Entity Type",
                     Type = "input",
-                    IsRequired = false,
+                    IsRequired = true,
                     Name = KeyName.AcceptedEntityType,
                     Help = "The entity type that defines the golden records you want to enrich (e.g., /Organization)."
                 },
