@@ -23,30 +23,33 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckgo
         public static string Icon { get; set; } = "Resources.duckduckgo.svg";
         public static string Domain { get; set; } = "N/A";
 
-        public static AuthMethods AuthMethods { get; set; } = new AuthMethods 
-        { 
-            token = new List<Control>()
+        public static AuthMethods AuthMethods { get; set; } = new AuthMethods
+        {
+            Token = new List<Control>()
             {
                 new Control()
                 {
-                    displayName = "Accepted Entity Type",
-                    type = "input",
-                    isRequired = true,
-                    name = KeyName.AcceptedEntityType
+                    DisplayName = "Accepted Entity Type",
+                    Type = "input",
+                    IsRequired = true,
+                    Name = KeyName.AcceptedEntityType,
+                    Help = "The entity type that defines the golden records you want to enrich (e.g., /Organization)."
                 },
                 new Control()
                 {
-                    displayName = "Organization Name vocab key",
-                    type = "input",
-                    isRequired = false,
-                    name = KeyName.OrgNameKey
+                    DisplayName = "Organization Name Vocabulary Key",
+                    Type = "input",
+                    IsRequired = false,
+                    Name = KeyName.OrgNameKey,
+                    Help = "The vocabulary key that contains the names of companies you want to enrich (e.g., organization.name)."
                 },
                 new Control()
                 {
-                    displayName = "Website vocab key",
-                    type = "input",
-                    isRequired = false,
-                    name = KeyName.WebsiteKey
+                    DisplayName = "Website Vocabulary Key",
+                    Type = "input",
+                    IsRequired = false,
+                    Name = KeyName.WebsiteKey,
+                    Help = "The vocabulary key that contains the websites of companies you want to enrich (e.g., organization.website)."
                 },
             }
         };
