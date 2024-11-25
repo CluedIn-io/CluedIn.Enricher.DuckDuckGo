@@ -13,4 +13,7 @@
     <PackageReference Include="CluedIn.Processing.Web" />
     <PackageReference Include="CluedIn.Processing.Web.TechnologyDetection" />
   </ItemGroup>
+  <PropertyGroup>
+	<LangVersion>preview</LangVersion>
+  </PropertyGroup>
 </Project>
