@@ -55,7 +55,7 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckgo
                 new Control()
                 {
                     DisplayName = "Accepted Entity Type",
-                    Type = "input",
+                    Type = "entityTypeSelector",
                     IsRequired = true,
                     Name = KeyName.AcceptedEntityType,
                     Help = "The entity type that defines the golden records you want to enrich (e.g., /Organization)."
@@ -63,7 +63,7 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckgo
                 new Control()
                 {
                     DisplayName = "Organization Name Vocabulary Key",
-                    Type = "input",
+                    Type = "vocabularyKeySelector",
                     IsRequired = false,
                     Name = KeyName.OrgNameKey,
                     Help = "The vocabulary key that contains the names of companies you want to enrich (e.g., organization.name)."
@@ -71,7 +71,7 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckgo
                 new Control()
                 {
                     DisplayName = "Website Vocabulary Key",
-                    Type = "input",
+                    Type = "vocabularyKeySelector",
                     IsRequired = false,
                     Name = KeyName.WebsiteKey,
                     Help = "The vocabulary key that contains the websites of companies you want to enrich (e.g., organization.website)."
