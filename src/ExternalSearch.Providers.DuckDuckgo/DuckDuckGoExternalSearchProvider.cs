@@ -32,12 +32,13 @@ using CluedIn.Core.Data.Vocabularies.Models;
 using CluedIn.Core.Data.Vocabularies;
 using CluedIn.ExternalSearch.Providers.DuckDuckgo.Helper;
 using CluedIn.ExternalSearch.Providers.DuckDuckgo.Services;
+using CluedIn.Core.Connectors;
 
 namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
 {
     /// <summary>A duck go external search provider.</summary>
     /// <seealso cref="T:CluedIn.ExternalSearch.ExternalSearchProviderBase"/>
-    public class DuckDuckGoExternalSearchProvider : ExternalSearchProviderBase, IExtendedEnricherMetadata, IConfigurableExternalSearchProvider
+    public class DuckDuckGoExternalSearchProvider : ExternalSearchProviderBase, IExtendedEnricherMetadata, IConfigurableExternalSearchProvider, IExtendedEnricherMethods
     {
         /**********************************************************************************************************
          * FIELDS
@@ -251,6 +252,28 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
                 base.DownloadPreviewImageBlob<SearchResult>(context, result, r => r.Data.Image);
 
             return null;
+        }
+
+        public ConnectionVerificationResult VerifyConnection(ExecutionContext context, IReadOnlyDictionary<string, object> config)
+        {
+            var client = new RestClient("https://api.duckduckgo.com");
+            var queryParameters = HttpUtility.ParseQueryString("");
+            queryParameters.Add("format", "json");
+            queryParameters.Add("timestamp", DateTime.Now.Ticks.ToString());    // potentially helps with throttling
+
+            var request = new RestRequest($"?{queryParameters}", Method.GET);
+            var response = client.Execute(request);
+
+            if (response.ErrorException != null)
+                return new ConnectionVerificationResult(false, response.StatusCode + " " + (string.IsNullOrWhiteSpace(response.ErrorMessage) ? response.ErrorException.Message : response.ErrorMessage));
+
+            var content = response.Content;
+            string errorMessage = !response.IsSuccessful && !string.IsNullOrWhiteSpace(content) ? content : string.Empty;
+
+            if (response.StatusCode is HttpStatusCode.NoContent or HttpStatusCode.NotFound)
+                return new ConnectionVerificationResult(false, errorMessage);
+
+            return new ConnectionVerificationResult(response.IsSuccessful, errorMessage);
         }
 
         private IEntityMetadata CreateMetadata(IExternalSearchQueryResult<SearchResult> resultItem, IExternalSearchRequest request, ExecutionContext context)
