@@ -17,28 +17,29 @@ using CluedIn.Core.Data.Parts;
 using CluedIn.Core.Data.Relational;
 using CluedIn.Core.ExternalSearch;
 using CluedIn.Core.Providers;
+using CluedIn.Core.Connectors;
 using CluedIn.Crawling.Helpers;
+using CluedIn.Core.Data.Vocabularies.Models;
+using CluedIn.Core.Data.Vocabularies;
+using CluedIn.ExternalSearch.Provider;
 using CluedIn.ExternalSearch.Filters;
 using CluedIn.ExternalSearch.Providers.DuckDuckgo;
 using CluedIn.ExternalSearch.Providers.DuckDuckGo.Model;
 using CluedIn.ExternalSearch.Providers.DuckDuckgo.Net;
 using CluedIn.ExternalSearch.Providers.DuckDuckGo.Vocabularies;
-using Newtonsoft.Json;
-using RestSharp;
-using EntityType = CluedIn.Core.Data.EntityType;
-using CluedIn.ExternalSearch.Provider;
-using System.Web;
-using CluedIn.Core.Data.Vocabularies.Models;
-using CluedIn.Core.Data.Vocabularies;
 using CluedIn.ExternalSearch.Providers.DuckDuckgo.Helper;
 using CluedIn.ExternalSearch.Providers.DuckDuckgo.Services;
-using CluedIn.Core.Connectors;
+using EntityType = CluedIn.Core.Data.EntityType;
+using Newtonsoft.Json;
+using RestSharp;
+using System.Web;
+using System.Text.RegularExpressions;
 
 namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
 {
     /// <summary>A duck go external search provider.</summary>
     /// <seealso cref="T:CluedIn.ExternalSearch.ExternalSearchProviderBase"/>
-    public class DuckDuckGoExternalSearchProvider : ExternalSearchProviderBase, IExtendedEnricherMetadata, IConfigurableExternalSearchProvider, IExtendedEnricherMethods
+    public class DuckDuckGoExternalSearchProvider : ExternalSearchProviderBase, IExtendedEnricherMetadata, IConfigurableExternalSearchProvider, IExternalSearchProviderWithVerifyConnection
     {
         /**********************************************************************************************************
          * FIELDS
@@ -264,14 +265,25 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
             var request = new RestRequest($"?{queryParameters}", Method.GET);
             var response = client.Execute(request);
 
+            return ConstructVerifyConnectionResponse(response);
+        }
+
+        private ConnectionVerificationResult ConstructVerifyConnectionResponse(IRestResponse response)
+        {
+            var errorMessageBase = $"{DuckDuckGoConstants.ProviderName} returned \"{(int)response.StatusCode} {response.StatusDescription}\".";
             if (response.ErrorException != null)
-                return new ConnectionVerificationResult(false, response.StatusCode + " " + (string.IsNullOrWhiteSpace(response.ErrorMessage) ? response.ErrorException.Message : response.ErrorMessage));
+                return new ConnectionVerificationResult(false, $"{errorMessageBase} {(!string.IsNullOrWhiteSpace(response.ErrorException.Message) ? response.ErrorException.Message : "This could be due to breaking changes in the external system")}.");
 
-            var content = response.Content;
-            string errorMessage = !response.IsSuccessful && !string.IsNullOrWhiteSpace(content) ? content : string.Empty;
+            if (response.StatusCode is HttpStatusCode.Unauthorized)
+                return new ConnectionVerificationResult(false, $"{errorMessageBase} This could be due to invalid API key.");
 
-            if (response.StatusCode is HttpStatusCode.NoContent or HttpStatusCode.NotFound)
-                return new ConnectionVerificationResult(false, errorMessage);
+            var regex = new Regex(@"\<(html|head|body|div|span|img|p\>|a href)", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.IgnorePatternWhitespace);
+            var isHtml = regex.IsMatch(response.Content);
+
+            string errorMessage = response.IsSuccessful ? string.Empty
+                : string.IsNullOrWhiteSpace(response.Content) || isHtml
+                    ? $"{errorMessageBase} This could be due to breaking changes in the external system."
+                    : $"{errorMessageBase} {response.Content}.";
 
             return new ConnectionVerificationResult(response.IsSuccessful, errorMessage);
         }
