@@ -50,14 +50,14 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckgo.Services
         {
             var vocabRepository = GetVocabularyRepository(context);
             var activateVocab = vocabRepository.GetType().GetMethod("ActivateVocabulary");
-            return (Task)activateVocab.Invoke(vocabRepository, new object[] { vocabularyId });
+            return (Task)activateVocab.Invoke(vocabRepository, new object[] { context, vocabularyId });
         }
 
         public Task ActivateVocabularyKey(ExecutionContext context, Guid vocabularyKeyId)
         {
             var vocabRepository = GetVocabularyRepository(context);
             var activateVocabKey = vocabRepository.GetType().GetMethod("ActivateVocabularyKey");
-            return (Task)activateVocabKey.Invoke(vocabRepository, new object[] { vocabularyKeyId });
+            return (Task)activateVocabKey.Invoke(vocabRepository, new object[] { context, vocabularyKeyId });
         }
 
         private object GetVocabularyRepository(ExecutionContext context)
