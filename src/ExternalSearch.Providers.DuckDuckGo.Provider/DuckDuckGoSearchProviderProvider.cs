@@ -9,6 +9,7 @@ using CluedIn.Core.ExternalSearch;
 using CluedIn.Core.Providers;
 using CluedIn.Core.Webhooks;
 using CluedIn.ExternalSearch.Providers.DuckDuckgo;
+using CluedIn.ExternalSearch.Providers.DuckDuckGo.Vocabularies;
 using CluedIn.Providers.Models;
 
 namespace CluedIn.ExternalSearch.Providers.DuckDuckGo.Provider
@@ -124,5 +125,16 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo.Provider
         public IEnumerable<Control> Properties { get; } = DuckDuckGoConstants.Properties;
         public Guide Guide { get; } = DuckDuckGoConstants.Guide;
         public new IntegrationType Type { get; } = DuckDuckGoConstants.IntegrationType;
+        public bool SupportsEnricherV2 => true;
+        public Dictionary<string, object> ExtraInfo { get; } = new Dictionary<string, object>
+        {
+            { "autoMap", true },
+            { "origin", DuckDuckGoConstants.ProviderName.ToCamelCase() },
+            { "originField", string.Empty },
+            { "nameKeyField", DuckDuckGoConstants.KeyName.OrgNameKey },
+            { "vocabKeyPrefix", DuckDuckGoVocabulary.Organization.KeyPrefix },
+            { "autoSubmission", false },
+            { "dataSourceSetId", string.Empty },
+        };
     }
 }
