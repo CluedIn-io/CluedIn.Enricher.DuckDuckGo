@@ -209,11 +209,17 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
 
             if (string.IsNullOrEmpty(resultItem.Data.Heading))
                 yield break;
+            var code = new EntityCode(request.EntityMetaData.OriginEntityCode.Type, "duckDuckGo", $"{query.QueryKey}{request.EntityMetaData.OriginEntityCode}".ToDeterministicGuid());
 
-            var clue = new Clue(request.EntityMetaData.OriginEntityCode, context.Organization);
+            var clue = new Clue(code, context.Organization)
+            {
+                Data =
+                {
+                    OriginProviderDefinitionId = Id
+                }
+            };
 
-            clue.Data.OriginProviderDefinitionId = this.Id;
-
+            clue.Data.EntityData.Codes.Add(request.EntityMetaData.OriginEntityCode);
             this.PopulateMetadata(clue.Data.EntityData, resultItem, request, context);
 
             if (resultItem.Data.ImageIsLogo == 1 && resultItem.Data.Image != null)
@@ -299,10 +305,12 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
 
         private void PopulateMetadata(IEntityMetadata metadata, IExternalSearchQueryResult<SearchResult> resultItem, IExternalSearchRequest request, ExecutionContext context)
         {
+            var code = new EntityCode(request.EntityMetaData.OriginEntityCode.Type, "duckDuckGo", $"{request.Queries.FirstOrDefault()?.QueryKey}{request.EntityMetaData.OriginEntityCode}".ToDeterministicGuid());
+
             metadata.EntityType       = request.EntityMetaData.EntityType;
             metadata.Name             = request.EntityMetaData.Name;
             metadata.Description      = resultItem.Data.Abstract;
-            metadata.OriginEntityCode = request.EntityMetaData.OriginEntityCode;
+            metadata.OriginEntityCode = code;
 
             var uri = resultItem.Data.Results.FirstOrDefault()?.FirstURL;
             if (uri != null && UriUtility.IsValid(uri))
