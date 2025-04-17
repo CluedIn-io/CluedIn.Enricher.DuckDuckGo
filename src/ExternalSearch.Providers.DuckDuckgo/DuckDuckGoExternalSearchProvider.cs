@@ -219,7 +219,6 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
                 }
             };
 
-            clue.Data.EntityData.Codes.Add(request.EntityMetaData.OriginEntityCode);
             this.PopulateMetadata(clue.Data.EntityData, resultItem, request, context);
 
             if (resultItem.Data.ImageIsLogo == 1 && resultItem.Data.Image != null)
@@ -311,6 +310,7 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
             metadata.Name             = request.EntityMetaData.Name;
             metadata.Description      = resultItem.Data.Abstract;
             metadata.OriginEntityCode = code;
+            metadata.Codes.Add(request.EntityMetaData.OriginEntityCode);
 
             var uri = resultItem.Data.Results.FirstOrDefault()?.FirstURL;
             if (uri != null && UriUtility.IsValid(uri))
