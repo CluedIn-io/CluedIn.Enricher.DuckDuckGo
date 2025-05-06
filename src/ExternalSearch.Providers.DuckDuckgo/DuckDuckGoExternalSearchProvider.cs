@@ -508,7 +508,7 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
             var request = new RestRequest($"?{queryParameters}", method);
 
             var applicationRateLimitService = context.ApplicationContext.Container.Resolve<IApplicationRateLimitingService>();
-            applicationRateLimitService.ThrottleProcessAsync(context, "DuckDuckGo_Throttling", TimeSpan.FromSeconds(1), 2, 1000).GetAwaiter().GetResult();
+            applicationRateLimitService.ThrottleClusterAsync(context, "DuckDuckGo_Throttling", TimeSpan.FromSeconds(1), 5, 1000).GetAwaiter().GetResult();
 
             var response = client.Execute(request);
 
@@ -534,7 +534,7 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
 
                 context.Log.LogDebug($"DuckDuckGo returned empty infobox for {name}");
 
-                if (response.StatusCode != HttpStatusCode.Accepted) return responseData;
+                if (response.StatusCode != HttpStatusCode.Accepted && response.StatusCode != HttpStatusCode.TooManyRequests) return responseData;
 
                 throw new ApplicationException($"Too many requests - Could not execute external search query - StatusCode:{response.StatusCode}; Content: {content}");
             }
