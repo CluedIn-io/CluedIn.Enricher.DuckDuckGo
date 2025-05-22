@@ -136,6 +136,10 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
                 companyWebsite = request.QueryParameters.GetValue(CluedIn.Core.Data.Vocabularies.Vocabularies.CluedInOrganization.Website, new HashSet<string>()).ToHashSet();
             }
 
+            if (!string.IsNullOrEmpty(request.EntityMetaData.Name))
+                companyName.Add(request.EntityMetaData.Name);
+            if (!string.IsNullOrEmpty(request.EntityMetaData.DisplayName))
+                companyName.Add(request.EntityMetaData.DisplayName);
 
             if (companyName != null)
             {
