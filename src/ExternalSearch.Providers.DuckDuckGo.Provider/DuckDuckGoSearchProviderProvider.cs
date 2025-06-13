@@ -129,6 +129,10 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo.Provider
         public Dictionary<string, object> ExtraInfo { get; } = new Dictionary<string, object>
         {
             { "autoMap", true },
+            { "useEnricherOriginEntityCode", true },
+            { "supportConfidenceScore", false }, // for UI
+            { "minConfidenceScore", 0 }, // for UI
+            { "maxConfidenceScore", 100 }, // for UI
             { "origin", DuckDuckGoConstants.ProviderName.ToCamelCase() },
             { "originField", string.Empty },
             { "nameKeyField", DuckDuckGoConstants.KeyName.OrgNameKey },
