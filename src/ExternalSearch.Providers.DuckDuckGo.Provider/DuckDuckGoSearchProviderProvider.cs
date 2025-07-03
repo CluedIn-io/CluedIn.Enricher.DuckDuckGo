@@ -117,6 +117,7 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo.Provider
             throw new NotImplementedException();
         }
 
+        public override bool ScheduleCrawlJobs => false;
         public string Icon { get; } = DuckDuckGoConstants.Icon;
         public string Domain { get; } = DuckDuckGoConstants.Domain;
         public string About { get; } = DuckDuckGoConstants.About;
