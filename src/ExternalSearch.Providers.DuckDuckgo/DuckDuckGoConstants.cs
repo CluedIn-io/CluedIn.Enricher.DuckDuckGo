@@ -62,11 +62,11 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckgo
                 },
                 new Control()
                 {
-                    DisplayName = "Organization Name Vocabulary Key",
+                    DisplayName = "Name Vocabulary Key",
                     Type = "vocabularyKeySelector",
                     IsRequired = false,
                     Name = KeyName.OrgNameKey,
-                    Help = "The vocabulary key that contains the names of companies you want to enrich (e.g., organization.name)."
+                    Help = "The vocabulary key that contains the names you want to enrich (e.g., organization.name)."
                 },
                 new Control()
                 {
@@ -74,7 +74,7 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckgo
                     Type = "vocabularyKeySelector",
                     IsRequired = false,
                     Name = KeyName.WebsiteKey,
-                    Help = "The vocabulary key that contains the websites of companies you want to enrich (e.g., organization.website)."
+                    Help = "The vocabulary key that contains the websites you want to enrich (e.g., organization.website)."
                 },
             }
         };
