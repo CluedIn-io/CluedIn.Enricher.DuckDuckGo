@@ -7,35 +7,35 @@
 // </summary>
 // --------------------------------------------------------------------------------------------------------------------
 
+using CluedIn.Core;
+using CluedIn.Core.Connectors;
+using CluedIn.Core.Data;
+using CluedIn.Core.Data.Parts;
+using CluedIn.Core.Data.Relational;
+using CluedIn.Core.Data.Vocabularies;
+using CluedIn.Core.Data.Vocabularies.Models;
+using CluedIn.Core.ExternalSearch;
+using CluedIn.Core.Providers;
+using CluedIn.Core.RateLimiting;
+using CluedIn.Crawling.Helpers;
+using CluedIn.ExternalSearch.Filters;
+using CluedIn.ExternalSearch.Provider;
+using CluedIn.ExternalSearch.Providers.DuckDuckgo;
+using CluedIn.ExternalSearch.Providers.DuckDuckgo.Helper;
+using CluedIn.ExternalSearch.Providers.DuckDuckgo.Net;
+using CluedIn.ExternalSearch.Providers.DuckDuckGo.Model;
+using CluedIn.ExternalSearch.Providers.DuckDuckGo.Vocabularies;
+using CluedIn.Integration.PrivateServices.Vocabularies;
+using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
+using RestSharp;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
-using CluedIn.Core;
-using CluedIn.Core.Data;
-using CluedIn.Core.Data.Parts;
-using CluedIn.Core.Data.Relational;
-using CluedIn.Core.ExternalSearch;
-using CluedIn.Core.Providers;
-using CluedIn.Core.Connectors;
-using CluedIn.Crawling.Helpers;
-using CluedIn.Core.Data.Vocabularies.Models;
-using CluedIn.Core.Data.Vocabularies;
-using CluedIn.ExternalSearch.Provider;
-using CluedIn.ExternalSearch.Filters;
-using CluedIn.ExternalSearch.Providers.DuckDuckgo;
-using CluedIn.ExternalSearch.Providers.DuckDuckGo.Model;
-using CluedIn.ExternalSearch.Providers.DuckDuckgo.Net;
-using CluedIn.ExternalSearch.Providers.DuckDuckGo.Vocabularies;
-using CluedIn.ExternalSearch.Providers.DuckDuckgo.Helper;
-using EntityType = CluedIn.Core.Data.EntityType;
-using Newtonsoft.Json;
-using RestSharp;
-using System.Web;
 using System.Text.RegularExpressions;
-using CluedIn.Core.RateLimiting;
-using CluedIn.Integration.PrivateServices.Vocabularies;
-using Microsoft.Extensions.Logging;
+using System.Web;
+using EntityType = CluedIn.Core.Data.EntityType;
 
 namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
 {
@@ -409,20 +409,20 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
                 return;
             }
 
-            object cached = context.ApplicationContext.System.Cache.GetItem<object>(cacheKey);
+            var cached = context.ApplicationContext.System.Cache.GetItem<object>(cacheKey);
             if (cached != null) return;
 
             using (LockHelper.GetDistributedLockAsync(context.ApplicationContext, "DuckDuckGo_CreateVocab_Lock", TimeSpan.FromMinutes(1)).GetAwaiter().GetResult())
             {
                 var vocabularyRepository = context.ApplicationContext.Container.Resolve<IPrivateVocabularyRepository>();
 
-                VocabularyKey existingVocabKey;
+                VocabularyKeyModel existingVocabKey;
                 if (keyType == ResultType.RelatedTopics)
                 {
-                    existingVocabKey = vocabularyRepository.GetVocabularyKeyByFullName(DuckDuckGoVocabulary.RelatedTopics.KeyPrefix + DuckDuckGoVocabulary.RelatedTopics.KeySeparator + count + DuckDuckGoVocabulary.RelatedTopics.KeySeparator + relatedTopicsType);
+                    existingVocabKey = vocabularyRepository.GetVocabularyKeyByFullNameAsync(context, DuckDuckGoVocabulary.RelatedTopics.KeyPrefix + DuckDuckGoVocabulary.RelatedTopics.KeySeparator + count + DuckDuckGoVocabulary.RelatedTopics.KeySeparator + relatedTopicsType).GetAwaiter().GetResult();
                     if (existingVocabKey == null)
                     {
-                        string displayNamePostFix = relatedTopicsType switch
+                        var displayNamePostFix = relatedTopicsType switch
                         {
                             RelatedTopicsType.FirstUrl => "Url",
                             RelatedTopicsType.Text => "Text",
@@ -440,14 +440,14 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
                             IsVisible = true,
                             Storage = VocabularyKeyStorage.Keyword
                         };
-                        var vocabKeyId = vocabularyRepository.AddVocabularyKey(newVocabKey, context, Guid.Empty.ToString(), true).GetAwaiter().GetResult();
-                        vocabularyRepository.ActivateVocabularyKey(context, vocabKeyId).GetAwaiter().GetResult();
+                        var vocabKeyId = vocabularyRepository.AddVocabularyKeyAsync(newVocabKey, context).GetAwaiter().GetResult();
+                        vocabularyRepository.ActivateVocabularyKeyAsync(context, vocabKeyId).GetAwaiter().GetResult();
 
                     }
                 }
                 else if (keyType == ResultType.Infobox)
                 {
-                    existingVocabKey = vocabularyRepository.GetVocabularyKeyByFullName(DuckDuckGoVocabulary.Infobox.KeyPrefix + DuckDuckGoVocabulary.Infobox.KeySeparator + label);
+                    existingVocabKey = vocabularyRepository.GetVocabularyKeyByFullNameAsync(context, DuckDuckGoVocabulary.Infobox.KeyPrefix + DuckDuckGoVocabulary.Infobox.KeySeparator + label).GetAwaiter().GetResult();
                     if (existingVocabKey == null)
                     {
                         var newVocabKey = new AddVocabularyKeyModel
@@ -460,8 +460,8 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
                             IsVisible = true,
                             Storage = VocabularyKeyStorage.Keyword
                         };
-                        var vocabKeyId = vocabularyRepository.AddVocabularyKey(newVocabKey, context, Guid.Empty.ToString(), true).GetAwaiter().GetResult();
-                        vocabularyRepository.ActivateVocabularyKey(context, vocabKeyId).GetAwaiter().GetResult();
+                        var vocabKeyId = vocabularyRepository.AddVocabularyKeyAsync(newVocabKey, context).GetAwaiter().GetResult();
+                        vocabularyRepository.ActivateVocabularyKeyAsync(context, vocabKeyId).GetAwaiter().GetResult();
                     }
                 }
                 context.ApplicationContext.System.Cache.SetItem(cacheKey, new object(), DateTimeOffset.Now.AddMinutes(1));
@@ -470,7 +470,7 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
 
         private static Guid GetOrCreateDuckDuckGoVocabularyId(ExecutionContext context)
         {
-            var cacheKey = "DuckDuckGo-GetExistingVocabulary";
+            const string cacheKey = "DuckDuckGo-GetExistingVocabulary";
             var cached = context.ApplicationContext.System.Cache.GetItem<object>(cacheKey);
 
             if (cached != null) return (Guid)cached;
@@ -479,14 +479,13 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
             {
                 var vocabularyRepository = context.ApplicationContext.Container.Resolve<IPrivateVocabularyRepository>();
 
-                var vocab = vocabularyRepository.GetVocabularyByKeyPrefix("duckDuckGo.organization");
-
+                var vocab = context.Organization.Vocabularies.GetVocabularyByKeyPrefixAsync(context, "duckDuckGo.organization").GetAwaiter().GetResult();
                 Guid vocabId;
                 if (vocab == null)
                 {
                     var newVocab = new AddVocabularyModel { VocabularyName = "DuckDuckGo Organization", KeyPrefix = "duckDuckGo.organization", Grouping = EntityType.Organization };
-                    vocabId = vocabularyRepository.AddVocabulary(newVocab, Guid.Empty.ToString(), context.Organization.Id).GetAwaiter().GetResult();
-                    vocabularyRepository.ActivateVocabulary(context, vocabId).GetAwaiter().GetResult();
+                    vocabId = vocabularyRepository.AddVocabularyAsync(context, newVocab).GetAwaiter().GetResult();
+                    vocabularyRepository.ActivateVocabularyAsync(context, vocabId).GetAwaiter().GetResult();
                 }
                 else
                 {
