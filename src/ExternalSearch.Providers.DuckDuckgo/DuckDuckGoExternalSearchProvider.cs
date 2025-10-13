@@ -440,7 +440,7 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
                             IsVisible = true,
                             Storage = VocabularyKeyStorage.Keyword
                         };
-                        var vocabKeyId = vocabularyRepository.AddVocabularyKeyAsync(newVocabKey, context).GetAwaiter().GetResult();
+                        var vocabKeyId = vocabularyRepository.AddVocabularyKeyAsync(context, newVocabKey).GetAwaiter().GetResult();
                         vocabularyRepository.ActivateVocabularyKeyAsync(context, vocabKeyId).GetAwaiter().GetResult();
 
                     }
@@ -460,7 +460,7 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
                             IsVisible = true,
                             Storage = VocabularyKeyStorage.Keyword
                         };
-                        var vocabKeyId = vocabularyRepository.AddVocabularyKeyAsync(newVocabKey, context).GetAwaiter().GetResult();
+                        var vocabKeyId = vocabularyRepository.AddVocabularyKeyAsync(context, newVocabKey).GetAwaiter().GetResult();
                         vocabularyRepository.ActivateVocabularyKeyAsync(context, vocabKeyId).GetAwaiter().GetResult();
                     }
                 }
