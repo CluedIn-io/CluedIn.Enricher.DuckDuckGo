@@ -167,7 +167,7 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
             if (companyWebsite.Any() && !filteredCompanyWebsite.Any() && !filteredValues.Any())
             {
                 // Currently unable to enrich if name is empty, so this exception will not be triggered until the issue being resolved
-                throw new Exception($"Unable to generate queries for {entityName}. Name is empty. Website URL was identified as an invalid and is filtered out.");
+                throw new Exception($"Unable to generate queries for {entityName}. Name is empty. Website URL was identified as an invalid URL and is filtered out.");
             }
 
             var uriHosts = filteredCompanyWebsite
