@@ -117,6 +117,7 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
 
             // Query Input
             var entityType     = request.EntityMetaData.EntityType;
+            var entityName = !string.IsNullOrEmpty(request.EntityMetaData.Name) ? request.EntityMetaData.Name : request.EntityMetaData.DisplayName;
 
             var companyName    = new HashSet<string>();
             var companyWebsite = new HashSet<string>();
@@ -143,35 +144,52 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
             if (!string.IsNullOrEmpty(request.EntityMetaData.DisplayName))
                 companyName.Add(request.EntityMetaData.DisplayName);
 
-            if (companyName != null)
+            if (!companyName.Any() && !companyWebsite.Any())
             {
-                var values = companyName.Select(NameNormalization.Normalize).ToHashSet();
-
-                foreach (var value in values.Where(v => !nameFilter(v) && !existingResultsFilter(v)))
-                    yield return new ExternalSearchQuery(this, entityType, ExternalSearchQueryParameter.Name, value);
+                throw new Exception($"Unable to generate queries for {entityName}. Both name and website URL are empty.");
             }
 
-            if (companyWebsite != null)
+            var values = companyName.Select(NameNormalization.Normalize).ToHashSet();
+            var filteredValues = values.Where(v => !nameFilter(v)).ToList();
+
+            if (!companyWebsite.Any() && companyName.Any() && !filteredValues.Any())
             {
-                var uriHosts = companyWebsite.Where(UriUtility.IsValid)
-                                             .Select(u => new Uri(u).Host.ToLowerInvariant())
-                                             .Distinct();
+                throw new Exception($"Unable to generate queries for {entityName}. Name is filtered out and website URL is empty.");
+            }
 
-                var domainHosts = companyWebsite.Where(v =>
-                    {
-                        if (UriUtility.IsValid(v))
-                            return false;
+            foreach (var value in filteredValues.Where(v => !existingResultsFilter(v)))
+            {
+                yield return new ExternalSearchQuery(this, entityType, ExternalSearchQueryParameter.Name, value);
+            }
 
-                        if (!DomainName.TryParse(v, out var domain))
-                            return false;
+            var filteredCompanyWebsite = companyWebsite.Where(UriUtility.IsValid).ToList();
 
-                        return true;
-                    }).Distinct();
+            if (companyWebsite.Any() && !filteredCompanyWebsite.Any() && !filteredValues.Any())
+            {
+                // Currently unable to enrich if name is empty, so this exception will not be triggered until the issue being resolved
+                throw new Exception($"Unable to generate queries for {entityName}. Name is empty. Website URL was identified as an invalid and is filtered out.");
+            }
 
-                var hosts = uriHosts.Union(domainHosts).Where(v => !existingResultsFilter2(v));
+            var uriHosts = filteredCompanyWebsite
+                    .Select(u => new Uri(u).Host.ToLowerInvariant())
+                    .Distinct();
 
-                foreach (var value in hosts)
-                    yield return new ExternalSearchQuery(this, entityType, ExternalSearchQueryParameter.Name, value);
+            var domainHosts = companyWebsite.Where(v =>
+            {
+                if (UriUtility.IsValid(v))
+                    return false;
+
+                if (!DomainName.TryParse(v, out var domain))
+                    return false;
+
+                return true;
+            }).Distinct();
+
+            var hosts = uriHosts.Union(domainHosts).Where(v => !existingResultsFilter2(v));
+
+            foreach (var value in hosts)
+            {
+                yield return new ExternalSearchQuery(this, entityType, ExternalSearchQueryParameter.Name, value);
             }
         }
 
@@ -210,11 +228,17 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
         {
             var resultItem = result.As<SearchResult>();
 
+            var entityName = !string.IsNullOrEmpty(request.EntityMetaData.Name) ? request.EntityMetaData.Name : request.EntityMetaData.DisplayName;
             if (resultItem.Data.Entity != "company")
-                yield break;
+            {
+                throw new Exception($"Unable to build clue for {entityName}. Entity is not a company.");
+            }
 
             if (string.IsNullOrEmpty(resultItem.Data.Heading))
-                yield break;
+            {
+                throw new Exception($"Unable to build clue for {entityName}. Heading is empty.");
+            }
+
             var code = new EntityCode(request.EntityMetaData.OriginEntityCode.Type, "duckDuckGo", $"{query.QueryKey}{request.EntityMetaData.OriginEntityCode}".ToDeterministicGuid());
 
             var clue = new Clue(code, context.Organization)
@@ -239,7 +263,10 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
             var resultItem = result.As<SearchResult>();
 
             if (resultItem.Data.Entity != "company")
-                return null;
+            {
+                var entityName = !string.IsNullOrEmpty(request.EntityMetaData.Name) ? request.EntityMetaData.Name : request.EntityMetaData.DisplayName;
+                throw new Exception($"Unable to get metadata for {entityName}. Entity is not a company.");
+            }
 
             return this.CreateMetadata(resultItem, request, context);
         }
@@ -536,7 +563,6 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
                 if (responseData.Infobox != null) return responseData;
 
                 context.Log.LogDebug($"DuckDuckGo returned empty infobox for {name}");
-
                 if (response.StatusCode != HttpStatusCode.Accepted && response.StatusCode != HttpStatusCode.TooManyRequests) return responseData;
 
                 throw new ApplicationException($"Too many requests - Could not execute external search query - StatusCode:{response.StatusCode}; Content: {content}");
