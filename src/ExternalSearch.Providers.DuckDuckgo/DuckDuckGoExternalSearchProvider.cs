@@ -154,7 +154,7 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
 
             if (!companyWebsite.Any() && companyName.Any() && !filteredValues.Any())
             {
-                throw new Exception($"Unable to generate queries for {entityName}. Name is filtered out and website URL is empty.");
+                throw new Exception($"Unable to generate queries for {entityName}. Name has been filtered out and website URL is empty.");
             }
 
             foreach (var value in filteredValues.Where(v => !existingResultsFilter(v)))
@@ -166,8 +166,7 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
 
             if (companyWebsite.Any() && !filteredCompanyWebsite.Any() && !filteredValues.Any())
             {
-                // Currently unable to enrich if name is empty, so this exception will not be triggered until the issue being resolved
-                throw new Exception($"Unable to generate queries for {entityName}. Name is empty. Website URL was identified as an invalid URL and is filtered out.");
+                throw new Exception($"Unable to generate queries for {entityName}. Name either is empty or has been filtered out. Website URL was identified as an invalid URL and has been filtered out.");
             }
 
             var uriHosts = filteredCompanyWebsite
