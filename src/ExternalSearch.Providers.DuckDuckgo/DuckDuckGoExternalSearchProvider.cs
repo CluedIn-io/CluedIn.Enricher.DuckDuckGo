@@ -154,7 +154,7 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
 
             if (!companyWebsite.Any() && companyName.Any() && !filteredValues.Any())
             {
-                throw new Exception($"Unable to generate queries for {entityName}. Name has been filtered out and website URL is empty.");
+                throw new Exception($"Unable to generate queries for {entityName}. Name is filtered out and website URL is empty.");
             }
 
             foreach (var value in filteredValues.Where(v => !existingResultsFilter(v)))
@@ -166,7 +166,7 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
 
             if (companyWebsite.Any() && !filteredCompanyWebsite.Any() && !filteredValues.Any())
             {
-                throw new Exception($"Unable to generate queries for {entityName}. Name either is empty or has been filtered out. Website URL was identified as an invalid URL and has been filtered out.");
+                throw new Exception($"Unable to generate queries for {entityName}. Name either is empty or is filtered out. Website URL is invalid URL and is filtered out.");
             }
 
             var uriHosts = filteredCompanyWebsite
