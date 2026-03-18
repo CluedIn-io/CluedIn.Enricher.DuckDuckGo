@@ -7,35 +7,35 @@
 // </summary>
 // --------------------------------------------------------------------------------------------------------------------
 
+using CluedIn.Core;
+using CluedIn.Core.Connectors;
+using CluedIn.Core.Data;
+using CluedIn.Core.Data.Parts;
+using CluedIn.Core.Data.Relational;
+using CluedIn.Core.Data.Vocabularies;
+using CluedIn.Core.Data.Vocabularies.Models;
+using CluedIn.Core.ExternalSearch;
+using CluedIn.Core.Providers;
+using CluedIn.Core.RateLimiting;
+using CluedIn.Crawling.Helpers;
+using CluedIn.ExternalSearch.Filters;
+using CluedIn.ExternalSearch.Provider;
+using CluedIn.ExternalSearch.Providers.DuckDuckgo;
+using CluedIn.ExternalSearch.Providers.DuckDuckgo.Helper;
+using CluedIn.ExternalSearch.Providers.DuckDuckgo.Net;
+using CluedIn.ExternalSearch.Providers.DuckDuckGo.Model;
+using CluedIn.ExternalSearch.Providers.DuckDuckGo.Vocabularies;
+using CluedIn.Integration.PrivateServices.Vocabularies;
+using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
+using RestSharp;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
-using CluedIn.Core;
-using CluedIn.Core.Data;
-using CluedIn.Core.Data.Parts;
-using CluedIn.Core.Data.Relational;
-using CluedIn.Core.ExternalSearch;
-using CluedIn.Core.Providers;
-using CluedIn.Core.Connectors;
-using CluedIn.Crawling.Helpers;
-using CluedIn.Core.Data.Vocabularies.Models;
-using CluedIn.Core.Data.Vocabularies;
-using CluedIn.ExternalSearch.Provider;
-using CluedIn.ExternalSearch.Filters;
-using CluedIn.ExternalSearch.Providers.DuckDuckgo;
-using CluedIn.ExternalSearch.Providers.DuckDuckGo.Model;
-using CluedIn.ExternalSearch.Providers.DuckDuckgo.Net;
-using CluedIn.ExternalSearch.Providers.DuckDuckGo.Vocabularies;
-using CluedIn.ExternalSearch.Providers.DuckDuckgo.Helper;
-using EntityType = CluedIn.Core.Data.EntityType;
-using Newtonsoft.Json;
-using RestSharp;
-using System.Web;
 using System.Text.RegularExpressions;
-using CluedIn.Core.RateLimiting;
-using CluedIn.Integration.PrivateServices.Vocabularies;
-using Microsoft.Extensions.Logging;
+using System.Web;
+using EntityType = CluedIn.Core.Data.EntityType;
 
 namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
 {
@@ -117,6 +117,7 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
 
             // Query Input
             var entityType     = request.EntityMetaData.EntityType;
+            var entityName = !string.IsNullOrEmpty(request.EntityMetaData.Name) ? request.EntityMetaData.Name : request.EntityMetaData.DisplayName;
 
             var companyName    = new HashSet<string>();
             var companyWebsite = new HashSet<string>();
@@ -143,35 +144,51 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
             if (!string.IsNullOrEmpty(request.EntityMetaData.DisplayName))
                 companyName.Add(request.EntityMetaData.DisplayName);
 
-            if (companyName != null)
+            if (!companyName.Any() && !companyWebsite.Any())
             {
-                var values = companyName.Select(NameNormalization.Normalize).ToHashSet();
-
-                foreach (var value in values.Where(v => !nameFilter(v) && !existingResultsFilter(v)))
-                    yield return new ExternalSearchQuery(this, entityType, ExternalSearchQueryParameter.Name, value);
+                throw new Exception($"Unable to generate queries for {entityName}. Both name and website URL are empty.");
             }
 
-            if (companyWebsite != null)
+            var values = companyName.Select(NameNormalization.Normalize).ToHashSet();
+            var filteredValues = values.Where(v => !nameFilter(v)).ToList();
+
+            if (!companyWebsite.Any() && companyName.Any() && !filteredValues.Any())
             {
-                var uriHosts = companyWebsite.Where(UriUtility.IsValid)
-                                             .Select(u => new Uri(u).Host.ToLowerInvariant())
-                                             .Distinct();
+                throw new Exception($"Unable to generate queries for {entityName}. Name has been filtered out and website URL is empty.");
+            }
 
-                var domainHosts = companyWebsite.Where(v =>
-                    {
-                        if (UriUtility.IsValid(v))
-                            return false;
+            foreach (var value in filteredValues.Where(v => !existingResultsFilter(v)))
+            {
+                yield return new ExternalSearchQuery(this, entityType, ExternalSearchQueryParameter.Name, value);
+            }
 
-                        if (!DomainName.TryParse(v, out var domain))
-                            return false;
+            var filteredCompanyWebsite = companyWebsite.Where(UriUtility.IsValid).ToList();
 
-                        return true;
-                    }).Distinct();
+            if (companyWebsite.Any() && !filteredCompanyWebsite.Any() && !filteredValues.Any())
+            {
+                throw new Exception($"Unable to generate queries for {entityName}. Name either is empty or has been filtered out. Website URL is invalid URL and has been filtered out.");
+            }
 
-                var hosts = uriHosts.Union(domainHosts).Where(v => !existingResultsFilter2(v));
+            var uriHosts = filteredCompanyWebsite
+                    .Select(u => new Uri(u).Host.ToLowerInvariant())
+                    .Distinct();
 
-                foreach (var value in hosts)
-                    yield return new ExternalSearchQuery(this, entityType, ExternalSearchQueryParameter.Name, value);
+            var domainHosts = companyWebsite.Where(v =>
+            {
+                if (UriUtility.IsValid(v))
+                    return false;
+
+                if (!DomainName.TryParse(v, out var domain))
+                    return false;
+
+                return true;
+            }).Distinct();
+
+            var hosts = uriHosts.Union(domainHosts).Where(v => !existingResultsFilter2(v));
+
+            foreach (var value in hosts)
+            {
+                yield return new ExternalSearchQuery(this, entityType, ExternalSearchQueryParameter.Name, value);
             }
         }
 
@@ -210,11 +227,17 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
         {
             var resultItem = result.As<SearchResult>();
 
+            var entityName = !string.IsNullOrEmpty(request.EntityMetaData.Name) ? request.EntityMetaData.Name : request.EntityMetaData.DisplayName;
             if (resultItem.Data.Entity != "company")
-                yield break;
+            {
+                throw new Exception($"Unable to build clue for {entityName}. Entity is not a company.");
+            }
 
             if (string.IsNullOrEmpty(resultItem.Data.Heading))
-                yield break;
+            {
+                throw new Exception($"Unable to build clue for {entityName}. Heading is empty.");
+            }
+
             var code = new EntityCode(request.EntityMetaData.OriginEntityCode.Type, "duckDuckGo", $"{query.QueryKey}{request.EntityMetaData.OriginEntityCode}".ToDeterministicGuid());
 
             var clue = new Clue(code, context.Organization)
@@ -239,7 +262,10 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
             var resultItem = result.As<SearchResult>();
 
             if (resultItem.Data.Entity != "company")
-                return null;
+            {
+                var entityName = !string.IsNullOrEmpty(request.EntityMetaData.Name) ? request.EntityMetaData.Name : request.EntityMetaData.DisplayName;
+                throw new Exception($"Unable to get metadata for {entityName}. Entity is not a company.");
+            }
 
             return this.CreateMetadata(resultItem, request, context);
         }
@@ -409,20 +435,20 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
                 return;
             }
 
-            object cached = context.ApplicationContext.System.Cache.GetItem<object>(cacheKey);
+            var cached = context.ApplicationContext.System.Cache.GetItem<object>(cacheKey);
             if (cached != null) return;
 
             using (LockHelper.GetDistributedLockAsync(context.ApplicationContext, "DuckDuckGo_CreateVocab_Lock", TimeSpan.FromMinutes(1)).GetAwaiter().GetResult())
             {
                 var vocabularyRepository = context.ApplicationContext.Container.Resolve<IPrivateVocabularyRepository>();
 
-                VocabularyKey existingVocabKey;
+                VocabularyKeyModel existingVocabKey;
                 if (keyType == ResultType.RelatedTopics)
                 {
-                    existingVocabKey = vocabularyRepository.GetVocabularyKeyByFullName(DuckDuckGoVocabulary.RelatedTopics.KeyPrefix + DuckDuckGoVocabulary.RelatedTopics.KeySeparator + count + DuckDuckGoVocabulary.RelatedTopics.KeySeparator + relatedTopicsType);
+                    existingVocabKey = vocabularyRepository.GetVocabularyKeyByFullNameAsync(context, DuckDuckGoVocabulary.RelatedTopics.KeyPrefix + DuckDuckGoVocabulary.RelatedTopics.KeySeparator + count + DuckDuckGoVocabulary.RelatedTopics.KeySeparator + relatedTopicsType).GetAwaiter().GetResult();
                     if (existingVocabKey == null)
                     {
-                        string displayNamePostFix = relatedTopicsType switch
+                        var displayNamePostFix = relatedTopicsType switch
                         {
                             RelatedTopicsType.FirstUrl => "Url",
                             RelatedTopicsType.Text => "Text",
@@ -440,14 +466,13 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
                             IsVisible = true,
                             Storage = VocabularyKeyStorage.Keyword
                         };
-                        var vocabKeyId = vocabularyRepository.AddVocabularyKey(newVocabKey, context, Guid.Empty.ToString(), true).GetAwaiter().GetResult();
-                        vocabularyRepository.ActivateVocabularyKey(context, vocabKeyId).GetAwaiter().GetResult();
-
+                        var vocabKeyId = vocabularyRepository.AddVocabularyKeyAsync(context, newVocabKey, context.Organization.Id, Guid.Empty).GetAwaiter().GetResult();
+                        vocabularyRepository.ActivateVocabularyKeyAsync(context, vocabKeyId).GetAwaiter().GetResult();
                     }
                 }
                 else if (keyType == ResultType.Infobox)
                 {
-                    existingVocabKey = vocabularyRepository.GetVocabularyKeyByFullName(DuckDuckGoVocabulary.Infobox.KeyPrefix + DuckDuckGoVocabulary.Infobox.KeySeparator + label);
+                    existingVocabKey = vocabularyRepository.GetVocabularyKeyByFullNameAsync(context, DuckDuckGoVocabulary.Infobox.KeyPrefix + DuckDuckGoVocabulary.Infobox.KeySeparator + label).GetAwaiter().GetResult();
                     if (existingVocabKey == null)
                     {
                         var newVocabKey = new AddVocabularyKeyModel
@@ -460,8 +485,8 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
                             IsVisible = true,
                             Storage = VocabularyKeyStorage.Keyword
                         };
-                        var vocabKeyId = vocabularyRepository.AddVocabularyKey(newVocabKey, context, Guid.Empty.ToString(), true).GetAwaiter().GetResult();
-                        vocabularyRepository.ActivateVocabularyKey(context, vocabKeyId).GetAwaiter().GetResult();
+                        var vocabKeyId = vocabularyRepository.AddVocabularyKeyAsync(context, newVocabKey, context.Organization.Id, Guid.Empty).GetAwaiter().GetResult();
+                        vocabularyRepository.ActivateVocabularyKeyAsync(context, vocabKeyId).GetAwaiter().GetResult();
                     }
                 }
                 context.ApplicationContext.System.Cache.SetItem(cacheKey, new object(), DateTimeOffset.Now.AddMinutes(1));
@@ -470,7 +495,7 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
 
         private static Guid GetOrCreateDuckDuckGoVocabularyId(ExecutionContext context)
         {
-            var cacheKey = "DuckDuckGo-GetExistingVocabulary";
+            const string cacheKey = "DuckDuckGo-GetExistingVocabulary";
             var cached = context.ApplicationContext.System.Cache.GetItem<object>(cacheKey);
 
             if (cached != null) return (Guid)cached;
@@ -479,14 +504,13 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
             {
                 var vocabularyRepository = context.ApplicationContext.Container.Resolve<IPrivateVocabularyRepository>();
 
-                var vocab = vocabularyRepository.GetVocabularyByKeyPrefix("duckDuckGo.organization");
-
+                var vocab = context.Organization.Vocabularies.GetVocabularyByKeyPrefixAsync(context, "duckDuckGo.organization").GetAwaiter().GetResult();
                 Guid vocabId;
                 if (vocab == null)
                 {
                     var newVocab = new AddVocabularyModel { VocabularyName = "DuckDuckGo Organization", KeyPrefix = "duckDuckGo.organization", Grouping = EntityType.Organization };
-                    vocabId = vocabularyRepository.AddVocabulary(newVocab, Guid.Empty.ToString(), context.Organization.Id).GetAwaiter().GetResult();
-                    vocabularyRepository.ActivateVocabulary(context, vocabId).GetAwaiter().GetResult();
+                    vocabId = vocabularyRepository.AddVocabularyAsync(context, newVocab, context.Organization.Id, Guid.Empty).GetAwaiter().GetResult();
+                    vocabularyRepository.ActivateVocabularyAsync(context, vocabId).GetAwaiter().GetResult();
                 }
                 else
                 {
@@ -537,7 +561,6 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
                 if (responseData.Infobox != null) return responseData;
 
                 context.Log.LogDebug($"DuckDuckGo returned empty infobox for {name}");
-
                 if (response.StatusCode != HttpStatusCode.Accepted && response.StatusCode != HttpStatusCode.TooManyRequests) return responseData;
 
                 throw new ApplicationException($"Too many requests - Could not execute external search query - StatusCode:{response.StatusCode}; Content: {content}");
