@@ -199,15 +199,15 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
             if (string.IsNullOrWhiteSpace(name))
                 yield break;
 
-            var client = new RestClient("https://api.duckduckgo.com")
+            var client = new RestClient(new RestClientOptions("https://api.duckduckgo.com")
             {
                 // TODO rotating the useragent can help with throttling
                 UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0"
-            };
+            });
 
             foreach (var searchName in GetSearchVariants(name.Trim()))
             {
-                var responseData = JsonRequestWrapper(context, client, searchName, Method.GET);
+                var responseData = JsonRequestWrapper(context, client, searchName, Method.Get);
 
                 if (responseData?.Infobox == null) continue;
 
@@ -299,13 +299,13 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
             queryParameters.Add("format", "json");
             queryParameters.Add("timestamp", DateTime.Now.Ticks.ToString());    // potentially helps with throttling
 
-            var request = new RestRequest($"?{queryParameters}", Method.GET);
+            var request = new RestRequest($"?{queryParameters}", Method.Get);
             var response = client.Execute(request);
 
             return ConstructVerifyConnectionResponse(response);
         }
 
-        private ConnectionVerificationResult ConstructVerifyConnectionResponse(IRestResponse response)
+        private ConnectionVerificationResult ConstructVerifyConnectionResponse(RestResponse response)
         {
             var errorMessageBase = $"{DuckDuckGoConstants.ProviderName} returned \"{(int)response.StatusCode} {response.StatusDescription}\".";
             if (response.ErrorException != null)
