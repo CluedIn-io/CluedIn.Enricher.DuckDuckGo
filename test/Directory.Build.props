@@ -6,10 +6,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="AutoFixture.Xunit2" />
+    <PackageReference Include="AutoFixture.Xunit3" />
     <PackageReference Include="coverlet.msbuild" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
-    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.v3" />
     <!-- De-comment to use xunit.core and .assert instead of the main package
          because compilation fails due to warnings triggered by xunit.analyzers.
     <PackageReference Include="xunit.core" Version="2.4.1" />
