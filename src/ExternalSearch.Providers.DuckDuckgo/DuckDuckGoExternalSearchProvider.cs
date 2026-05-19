@@ -336,7 +336,8 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
 
         private void PopulateMetadata(IEntityMetadata metadata, IExternalSearchQueryResult<SearchResult> resultItem, IExternalSearchRequest request, ExecutionContext context)
         {
-            var code = new EntityCode(request.EntityMetaData.OriginEntityCode.Type, "duckDuckGo", $"{request.Queries.FirstOrDefault()?.QueryKey}{request.EntityMetaData.OriginEntityCode}".ToDeterministicGuid());
+            var queryKey = request.Queries.FirstOrDefault(x => x.Id == resultItem.QueryId)?.QueryKey ?? request.Queries.FirstOrDefault()?.QueryKey;
+            var code = new EntityCode(request.EntityMetaData.OriginEntityCode.Type, "duckDuckGo", $"{queryKey}{request.EntityMetaData.OriginEntityCode}".ToDeterministicGuid());
 
             metadata.EntityType       = request.EntityMetaData.EntityType;
             metadata.Name             = request.EntityMetaData.Name;
