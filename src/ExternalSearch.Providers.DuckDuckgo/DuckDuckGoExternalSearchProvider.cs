@@ -238,7 +238,7 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
                 throw new Exception($"Unable to build clue for {entityName}. Heading is empty.");
             }
 
-            var code = new EntityCode(request.EntityMetaData.OriginEntityCode.Type, "duckDuckGo", $"{query.QueryKey}{request.EntityMetaData.OriginEntityCode}".ToDeterministicGuid());
+            var code = new EntityCode(request.EntityMetaData.EntityType, "duckDuckGo", $"{query.QueryKey}{request.EntityMetaData.OriginEntityCode}".ToDeterministicGuid());
 
             var clue = new Clue(code, context.Organization)
             {
@@ -337,7 +337,7 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
         private void PopulateMetadata(IEntityMetadata metadata, IExternalSearchQueryResult<SearchResult> resultItem, IExternalSearchRequest request, ExecutionContext context)
         {
             var queryKey = request.Queries.FirstOrDefault(x => x.Id == resultItem.QueryId)?.QueryKey ?? request.Queries.FirstOrDefault()?.QueryKey;
-            var code = new EntityCode(request.EntityMetaData.OriginEntityCode.Type, "duckDuckGo", $"{queryKey}{request.EntityMetaData.OriginEntityCode}".ToDeterministicGuid());
+            var code = new EntityCode(request.EntityMetaData.EntityType, "duckDuckGo", $"{queryKey}{request.EntityMetaData.OriginEntityCode}".ToDeterministicGuid());
 
             metadata.EntityType       = request.EntityMetaData.EntityType;
             metadata.Name             = request.EntityMetaData.Name;
