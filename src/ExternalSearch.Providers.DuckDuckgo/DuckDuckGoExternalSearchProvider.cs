@@ -16,7 +16,6 @@ using CluedIn.Core.Data.Vocabularies;
 using CluedIn.Core.Data.Vocabularies.Models;
 using CluedIn.Core.ExternalSearch;
 using CluedIn.Core.Providers;
-using CluedIn.Core.RateLimiting;
 using CluedIn.Crawling.Helpers;
 using CluedIn.ExternalSearch.Filters;
 using CluedIn.ExternalSearch.Provider;
@@ -536,14 +535,10 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
 
             var request = new RestRequest($"?{queryParameters}", method);
 
-            var applicationRateLimitService = context.ApplicationContext.Container.Resolve<IApplicationRateLimitingService>();
-            applicationRateLimitService.ThrottleClusterAsync(context, "DuckDuckGo_Throttling", TimeSpan.FromSeconds(1), 5, 1000).GetAwaiter().GetResult();
-
             var response = client.Execute(request);
 
             if (response.ErrorException != null)
             {
-                System.Threading.Thread.Sleep(1000);   // sleeping as if there is an error with the remote server we don't want to burn through the queue
                 throw new ApplicationException($"Could not execute external search query - {response.ErrorException}");
             }
 
