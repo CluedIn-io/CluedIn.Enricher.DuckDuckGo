@@ -51,6 +51,16 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
         private const string StreamIdKey = "StreamId";
         private const string DataTimeKey = "DataTime";
 
+        // RestSharp major-version break: CluedIn 4.7/4.8 (net6.0) resolve RestSharp 106.x (legacy
+        // API: Method.GET uppercase, no RestClientOptions ctor, Execute() returns IRestResponse);
+        // CluedIn 5.0+ (net10.0) resolve RestSharp 114.x (rewritten API: Method.Get PascalCase,
+        // RestClientOptions ctor, Execute() returns RestResponse directly).
+#if CLUEDIN_V50
+        private const Method HttpGetMethod = Method.Get;
+#else
+        private const Method HttpGetMethod = Method.GET;
+#endif
+
         public struct ResultType
         {
             public const string RelatedTopics = "RelatedTopics";
@@ -198,15 +208,23 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
             if (string.IsNullOrWhiteSpace(name))
                 yield break;
 
+#if CLUEDIN_V50
             var client = new RestClient(new RestClientOptions("https://api.duckduckgo.com")
             {
                 // TODO rotating the useragent can help with throttling
                 UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0"
             });
+#else
+            var client = new RestClient("https://api.duckduckgo.com")
+            {
+                // TODO rotating the useragent can help with throttling
+                UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0"
+            };
+#endif
 
             foreach (var searchName in GetSearchVariants(name.Trim()))
             {
-                var responseData = JsonRequestWrapper(context, client, searchName, Method.Get);
+                var responseData = JsonRequestWrapper(context, client, searchName, HttpGetMethod);
 
                 if (responseData?.Infobox == null) continue;
 
@@ -298,13 +316,17 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo
             queryParameters.Add("format", "json");
             queryParameters.Add("timestamp", DateTime.Now.Ticks.ToString());    // potentially helps with throttling
 
-            var request = new RestRequest($"?{queryParameters}", Method.Get);
+            var request = new RestRequest($"?{queryParameters}", HttpGetMethod);
             var response = client.Execute(request);
 
             return ConstructVerifyConnectionResponse(response);
         }
 
+#if CLUEDIN_V50
         private ConnectionVerificationResult ConstructVerifyConnectionResponse(RestResponse response)
+#else
+        private ConnectionVerificationResult ConstructVerifyConnectionResponse(IRestResponse response)
+#endif
         {
             var errorMessageBase = $"{DuckDuckGoConstants.ProviderName} returned \"{(int)response.StatusCode} {response.StatusDescription}\".";
             if (response.ErrorException != null)
