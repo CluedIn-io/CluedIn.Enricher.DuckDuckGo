@@ -163,4 +163,4 @@ BranchName: "feature/multi-version-targeting"
 - [x] `GitVersion.yml` — `next-version: 1.0`; `ignore.commits-before: 2026-06-20T00:00:00` (2-day padding); verified `MajorMinorPatch: "1.0.0"` with the pinned GitVersion.Tool 5.9.0
 - [x] `src/` builds clean (0 errors) for all three legs on both projects, verified locally via real `dotnet build`
 - [x] Integration test project builds clean for all three legs; both tests are pre-existing skips, unrelated to this migration
-- [ ] Push branch and confirm the actual Azure DevOps pipeline run is green end-to-end (all three legs + `Multi-version: publish`)
+- [x] Pushed branch and confirmed the Azure DevOps pipeline is green end-to-end — PR #53, build 151976: all three `Multi-version build+test` legs, all three `Integration tests` legs, and `Multi-version: publish` passed
