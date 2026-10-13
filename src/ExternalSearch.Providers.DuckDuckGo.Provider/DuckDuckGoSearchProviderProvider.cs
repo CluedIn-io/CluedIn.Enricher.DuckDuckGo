@@ -140,6 +140,7 @@ namespace CluedIn.ExternalSearch.Providers.DuckDuckGo.Provider
             { "vocabKeyPrefix", DuckDuckGoVocabulary.Organization.KeyPrefix },
             { "autoSubmission", false },
             { "dataSourceSetId", string.Empty },
+            { "fieldGroups", DuckDuckGoConstants.FieldGroups }, // for UI
         };
     }
 }
